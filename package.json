@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode client && vite build",
-    "start": "bun dist/index.js"
+    "start": "bun dist/index.js",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
   },
   "devDependencies": {
     "@hono/vite-build": "^1.10.1",

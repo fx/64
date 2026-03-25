@@ -76,3 +76,15 @@ Use `hc` client from `src/client/lib/api.ts` for type-safe API calls. Types are 
 - Path aliases: `@/*` → `./src/*`, `@server/*`, `@client/*`, `@shared/*`
 
 **Task Completion:** Every PR must mark completed task(s) as done (`- [x]`) in the relevant tracking file (`docs/PROJECT.md` or the spec file in `docs/specs/`). Include the task-list update in the PR.
+
+## Testing
+
+- **Test runner:** `bun test` — coverage: `bun test --coverage`
+- **Tests in** `tests/` named `<module>.test.ts`
+- All PRs must include tests covering changes. Target >=90% line and function coverage.
+- **Bug fixes:** always write a failing regression test BEFORE fixing the bug.
+- **Mocking pattern:** mock `globalThis.fetch`, save original in `const originalFetch = globalThis.fetch` and restore in `afterEach`.
+- **Hono route testing:** create the app with `new Hono().basePath("/api").route("/", routes)`, test with `app.request(path, options)`.
+- **DeviceStore in tests:** use a unique temp file per test via `join(tmpdir(), 'test-xxx-' + Date.now() + '.json')`, clean up in `afterEach`.
+- **Test data:** use `makeDevice(overrides)` helper pattern for creating test device objects.
+- **Imports:** use `bun:test` only — `describe, it, expect, beforeEach, afterEach, mock`.

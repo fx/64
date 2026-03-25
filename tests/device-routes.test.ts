@@ -208,4 +208,151 @@ describe("Device Routes", () => {
     });
     expect(res.status).toBe(400);
   });
+
+  // ── Error status mapping for POST /api/devices ──
+
+  it("POST /api/devices returns 403 when version probe gets auth error", async () => {
+    globalThis.fetch = mock(async () =>
+      new Response("Forbidden", { status: 403 }),
+    ) as typeof fetch;
+
+    const res = await app.request("/api/devices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ip: "192.168.1.42" }),
+    });
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain("Authentication");
+  });
+
+  it("POST /api/devices returns 504 when version probe times out", async () => {
+    globalThis.fetch = mock(async () => {
+      throw new DOMException("The operation was aborted", "AbortError");
+    }) as typeof fetch;
+
+    const res = await app.request("/api/devices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ip: "192.168.1.42" }),
+    });
+    expect(res.status).toBe(504);
+    const body = await res.json();
+    expect(body.error).toContain("timeout");
+  });
+
+  it("POST /api/devices returns 502 when version probe gets network error", async () => {
+    globalThis.fetch = mock(async () => {
+      throw new Error("connect ECONNREFUSED");
+    }) as typeof fetch;
+
+    const res = await app.request("/api/devices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ip: "192.168.1.42" }),
+    });
+    expect(res.status).toBe(502);
+  });
+
+  it("POST /api/devices returns 403 when info fetch gets auth error", async () => {
+    // Version succeeds, but info returns 403
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("/v1/version")) {
+        return new Response(JSON.stringify({ version: "0.1", errors: [] }), {
+          headers: { "content-type": "application/json" },
+        });
+      }
+      // info returns 403
+      return new Response("Forbidden", { status: 403 });
+    }) as typeof fetch;
+
+    const res = await app.request("/api/devices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ip: "192.168.1.42" }),
+    });
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain("Authentication");
+  });
+
+  it("POST /api/devices returns 504 when info fetch times out", async () => {
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("/v1/version")) {
+        return new Response(JSON.stringify({ version: "0.1", errors: [] }), {
+          headers: { "content-type": "application/json" },
+        });
+      }
+      // info times out
+      throw new DOMException("The operation was aborted", "AbortError");
+    }) as typeof fetch;
+
+    const res = await app.request("/api/devices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ip: "192.168.1.42" }),
+    });
+    expect(res.status).toBe(504);
+  });
+
+  // ── PUT validation ──
+
+  it("PUT /api/devices/:id returns 400 for non-private IP", async () => {
+    await app.request("/api/devices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ip: "192.168.1.42" }),
+    });
+
+    const res = await app.request("/api/devices/8D927F", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ip: "8.8.8.8" }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("private");
+  });
+
+  it("PUT /api/devices/:id returns 404 for non-existent device", async () => {
+    const res = await app.request("/api/devices/NONEXISTENT", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "New Name" }),
+    });
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toContain("not found");
+  });
+
+  // ── Scan error handling ──
+
+  it("POST /api/devices/scan returns 400 for invalid subnet format", async () => {
+    const res = await app.request("/api/devices/scan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ subnet: "not-a-subnet" }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("/24");
+  });
+
+  it("POST /api/devices/scan returns discovered devices on success", async () => {
+    // All IPs will fail except none - empty result
+    globalThis.fetch = mock(async () => {
+      throw new Error("ECONNREFUSED");
+    }) as typeof fetch;
+
+    const res = await app.request("/api/devices/scan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ subnet: "192.168.1.0/24" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.discovered).toEqual([]);
+  });
 });
