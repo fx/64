@@ -112,42 +112,42 @@ For endpoints that accept or return binary data (`application/octet-stream`):
 
 ## Acceptance Criteria
 
-- [ ] `GET /api/devices/:id/v1/info` proxies to the device and returns typed JSON
-- [ ] `PUT /api/devices/:id/v1/machine:reset` forwards PUT commands
-- [ ] `POST /api/devices/:id/v1/runners:run_prg` forwards binary uploads
-- [ ] `GET /api/devices/:id/v1/machine:readmem` returns binary response
-- [ ] CORS headers present on all responses
-- [ ] `X-Password` automatically injected for authenticated devices
-- [ ] Proper error responses for offline/missing/timeout/auth-failure scenarios
-- [ ] Hono RPC client infers types for at least info, drives, and machine endpoints
+- [x] `GET /api/devices/:id/v1/info` proxies to the device and returns typed JSON
+- [x] `PUT /api/devices/:id/v1/machine:reset` forwards PUT commands
+- [x] `POST /api/devices/:id/v1/runners:run_prg` forwards binary uploads
+- [x] `GET /api/devices/:id/v1/machine:readmem` returns binary response
+- [x] CORS headers present on all responses
+- [x] `X-Password` automatically injected for authenticated devices
+- [x] Proper error responses for offline/missing/timeout/auth-failure scenarios
+- [x] Hono RPC client infers types for at least info, drives, and machine endpoints
 
 ## Tasks
 
-- [ ] Implement transparent proxy route with CORS and auth injection
-  - [ ] Create catch-all route `ALL /api/devices/:deviceId/v1/*`
-  - [ ] Look up device in registry, return 404/503 for missing/offline
-  - [ ] Construct target URL from device IP/port and request path
-  - [ ] Inject `X-Password` header from device registry
-  - [ ] Forward request using Hono's `proxy()` helper (headers, method, body)
-  - [ ] Add CORS headers to all `/api/*` responses (middleware)
-  - [ ] Handle OPTIONS preflight requests
-- [ ] Implement error wrapping for proxy failures
-  - [ ] Map device errors to consistent JSON envelope with `proxy_error: true`
-  - [ ] Handle: 404 (not found), 503 (offline), 403 (auth), 504 (timeout), 502 (network error)
-  - [ ] Set 5-second timeout on proxy requests to devices
-- [ ] Implement typed Hono routes for key C64U API groups
-  - [ ] Typed routes for `/v1/info` and `/v1/version` (About)
-  - [ ] Typed routes for `/v1/runners:*` (Runners)
-  - [ ] Typed routes for `/v1/configs*` (Configuration)
-  - [ ] Typed routes for `/v1/machine:*` (Machine)
-  - [ ] Typed routes for `/v1/drives*` (Floppy Drives)
-  - [ ] Typed routes for `/v1/streams*` (Data Streams)
-  - [ ] Typed routes for `/v1/files*` (File Manipulation)
-  - [ ] Create shared TypeScript types in `src/shared/` for all response shapes
-- [ ] Implement binary request/response passthrough
-  - [ ] Forward POST binary bodies (disk images, PRG, ROM uploads) as-is
-  - [ ] Return binary responses (`application/octet-stream`) without JSON wrapping
-  - [ ] Verify `readmem` returns raw binary and `writemem` POST accepts binary body
-- [ ] Verify Hono RPC client type inference end-to-end
-  - [ ] `hc` client infers correct types for info, drives, machine endpoints
-  - [ ] Add example usage in `src/client/lib/api.ts`
+- [x] Implement transparent proxy route with CORS and auth injection
+  - [x] Create catch-all route `ALL /api/devices/:deviceId/v1/*`
+  - [x] Look up device in registry, return 404/503 for missing/offline
+  - [x] Construct target URL from device IP/port and request path
+  - [x] Inject `X-Password` header from device registry
+  - [x] Forward request using Hono's `proxy()` helper (headers, method, body)
+  - [x] Add CORS headers to all `/api/*` responses (middleware)
+  - [x] Handle OPTIONS preflight requests
+- [x] Implement error wrapping for proxy failures
+  - [x] Map device errors to consistent JSON envelope with `proxy_error: true`
+  - [x] Handle: 404 (not found), 503 (offline), 403 (auth), 504 (timeout), 502 (network error)
+  - [x] Set 5-second timeout on proxy requests to devices
+- [x] Implement typed Hono routes for key C64U API groups
+  - [x] Typed routes for `/v1/info` and `/v1/version` (About)
+  - [x] Typed routes for `/v1/runners:*` (Runners)
+  - [x] Typed routes for `/v1/configs*` (Configuration)
+  - [x] Typed routes for `/v1/machine:*` (Machine)
+  - [x] Typed routes for `/v1/drives*` (Floppy Drives)
+  - [x] Typed routes for `/v1/streams*` (Data Streams)
+  - [x] Typed routes for `/v1/files*` (File Manipulation)
+  - [x] Create shared TypeScript types in `src/shared/` for all response shapes
+- [x] Implement binary request/response passthrough
+  - [x] Forward POST binary bodies (disk images, PRG, ROM uploads) as-is
+  - [x] Return binary responses (`application/octet-stream`) without JSON wrapping
+  - [x] Verify `readmem` returns raw binary and `writemem` POST accepts binary body
+- [x] Verify Hono RPC client type inference end-to-end
+  - [x] `hc` client infers correct types for info, drives, machine endpoints
+  - [x] Add example usage in `src/client/lib/api.ts`
