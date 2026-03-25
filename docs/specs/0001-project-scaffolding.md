@@ -328,64 +328,64 @@ src/
 
 ## Acceptance Criteria
 
-- [ ] `bun run dev` starts Vite with Hono, React SPA loads with HMR
-- [ ] `GET /api/health` returns `{ "status": "ok" }` from Hono
-- [ ] TanStack Router handles client-side navigation (at least root + one route)
+- [x] `bun run dev` starts Vite with Hono, React SPA loads with HMR
+- [x] `GET /api/health` returns `{ "status": "ok" }` from Hono
+- [x] TanStack Router handles client-side navigation (at least root + one route)
 - [ ] shadcn/ui Button component renders with Base UI + Tailwind styling
-- [ ] `bun run build && bun dist/index.js` serves the production app
-- [ ] Hono RPC client can call `/api/health` with full type inference in React
-- [ ] C64 Pro Mono font loads and renders pixel-perfect (no antialiasing)
-- [ ] All 16 VIC-II colors available as CSS variables and Tailwind utilities
-- [ ] Home page renders with blue background, light blue text, PETSCII border
-- [ ] `CLAUDE.md` exists with design system rules enforcing C64 aesthetic
+- [x] `bun run build && bun dist/index.js` serves the production app
+- [x] Hono RPC client can call `/api/health` with full type inference in React
+- [x] C64 Pro Mono font loads and renders pixel-perfect (no antialiasing)
+- [x] All 16 VIC-II colors available as CSS variables and Tailwind utilities
+- [x] Home page renders with blue background, light blue text, PETSCII border
+- [x] `CLAUDE.md` exists with design system rules enforcing C64 aesthetic
 
 ## Tasks
 
-- [ ] Initialize project with Bun, install core dependencies, and configure TypeScript
-  - [ ] `bun init`, add `hono`, `react`, `react-dom`, `@base-ui/react`, `@tanstack/react-router`, `@tanstack/react-query`, `tailwindcss`
-  - [ ] Add dev dependencies: `vite`, `@hono/vite-dev-server`, `@hono/vite-build`, `@tanstack/router-vite-plugin`, `typescript`, `@types/react`, `@types/react-dom`
-  - [ ] Configure `tsconfig.json` with `jsxImportSource: "react"`, path aliases, strict mode
-- [ ] Set up Vite 8 config with Hono dev server and build plugins
-  - [ ] Create `vite.config.ts` with `@hono/vite-dev-server` pointing to `src/server/index.ts`
-  - [ ] Configure `@hono/vite-build/bun` for production server build
-  - [ ] Configure client build mode outputting to `dist/static/`
-  - [ ] Add `@tanstack/router-vite-plugin` for file-based route generation
-  - [ ] Add build scripts to `package.json`: `dev`, `build`, `start`
-- [ ] Create Hono server entry with health endpoint and SPA fallback
-  - [ ] Create `src/server/index.ts` with Hono app
-  - [ ] Add `GET /api/health` route returning `{ "status": "ok" }`
-  - [ ] Configure `serveStatic` from `hono/bun` for production static files
-  - [ ] Add SPA fallback: serve `index.html` for all non-API, non-static routes
-- [ ] Set up React SPA with TanStack Router and Query
-  - [ ] Create `index.html` SPA entry
-  - [ ] Create `src/client/main.tsx` React entry point with router and query providers
-  - [ ] Create `src/client/router.tsx` TanStack Router configuration
-  - [ ] Create `src/client/routes/__root.tsx` root layout
-  - [ ] Create `src/client/routes/index.tsx` home page
-  - [ ] Create `src/client/lib/query.ts` TanStack Query client setup
+- [x] Initialize project with Bun, install core dependencies, and configure TypeScript
+  - [x] `bun init`, add `hono`, `react`, `react-dom`, `@base-ui/react`, `@tanstack/react-router`, `@tanstack/react-query`, `tailwindcss`
+  - [x] Add dev dependencies: `vite`, `@hono/vite-dev-server`, `@hono/vite-build`, `@tanstack/router-vite-plugin`, `typescript`, `@types/react`, `@types/react-dom`
+  - [x] Configure `tsconfig.json` with `jsxImportSource: "react"`, path aliases, strict mode
+- [x] Set up Vite 8 config with Hono dev server and build plugins
+  - [x] Create `vite.config.ts` with `@hono/vite-dev-server` pointing to `src/server/index.ts`
+  - [x] Configure `@hono/vite-build/bun` for production server build
+  - [x] Configure client build mode outputting to `dist/static/`
+  - [x] Add `@tanstack/router-vite-plugin` for file-based route generation
+  - [x] Add build scripts to `package.json`: `dev`, `build`, `start`
+- [x] Create Hono server entry with health endpoint and SPA fallback
+  - [x] Create `src/server/index.ts` with Hono app
+  - [x] Add `GET /api/health` route returning `{ "status": "ok" }`
+  - [x] Configure `serveStatic` from `hono/bun` for production static files
+  - [x] Add SPA fallback: serve `index.html` for all non-API, non-static routes
+- [x] Set up React SPA with TanStack Router and Query
+  - [x] Create `index.html` SPA entry
+  - [x] Create `src/client/main.tsx` React entry point with router and query providers
+  - [x] Create `src/client/router.tsx` TanStack Router configuration
+  - [x] Create `src/client/routes/__root.tsx` root layout
+  - [x] Create `src/client/routes/index.tsx` home page
+  - [x] Create `src/client/lib/query.ts` TanStack Query client setup
 - [ ] Initialize shadcn/ui v4 with Base UI base and Tailwind CSS 4
-  - [ ] Configure Tailwind CSS 4 (`tailwind.config.ts` or CSS config)
+  - [x] Configure Tailwind CSS 4 (`tailwind.config.ts` or CSS config)
   - [ ] Run `shadcn init` with Base UI base and chosen style (lyra/nova/maia)
   - [ ] Override shadcn defaults: `border-radius: 0`, no shadows, C64 colors only
   - [ ] Add a Button component to verify shadcn + Base UI + Tailwind works
-- [ ] Set up C64 design system: font, palette, and base styles
-  - [ ] Download C64 Pro Mono font files from style64.org and place in `public/fonts/`
-  - [ ] Include `C64ProMono-LICENSE.txt` alongside font files
-  - [ ] Create `src/client/styles/c64-palette.css` with all 16 VIC-II color CSS variables (Colodore palette)
-  - [ ] Create `src/client/styles/c64-base.css` with `@font-face`, pixel-perfect rendering rules, base body styles
-  - [ ] Create `src/client/styles/c64-components.css` with inverse-video buttons, PETSCII box borders, cursor blink animation
-  - [ ] Add Tailwind utilities: `text-c64-*`, `bg-c64-*`, `border-c64-*` for all 16 colors
-  - [ ] Create `src/client/lib/petscii.ts` helper for rendering PETSCII characters by screen code
-  - [ ] Create `src/client/components/ui/c64-box.tsx` — panel component with PETSCII box-drawing border
-  - [ ] Verify: home page renders with blue bg, light blue text, PETSCII-bordered panel, no antialiasing
-- [ ] Create CLAUDE.md with design system rules
-  - [ ] Write project `CLAUDE.md` with mandatory C64 aesthetic rules (font, colors, layout, components, CSS)
-  - [ ] Include task completion language for PR tracking
-- [ ] Set up Hono RPC client for type-safe API calls
-  - [ ] Create `src/client/lib/api.ts` with `hc` client typed against the Hono app
-  - [ ] Create `src/shared/types.ts` for shared type definitions
-  - [ ] Verify type inference works: calling `/api/health` from React with full types
-- [ ] Verify production build and runtime
-  - [ ] `bun run build` produces `dist/index.js` and `dist/static/*`
-  - [ ] `bun dist/index.js` serves both API and SPA on a single port
-  - [ ] Client-side routing works (navigate to a route, refresh, SPA loads)
+- [x] Set up C64 design system: font, palette, and base styles
+  - [x] Download C64 Pro Mono font files from style64.org and place in `public/fonts/`
+  - [x] Include `C64ProMono-LICENSE.txt` alongside font files
+  - [x] Create `src/client/styles/c64-palette.css` with all 16 VIC-II color CSS variables (Colodore palette)
+  - [x] Create `src/client/styles/c64-base.css` with `@font-face`, pixel-perfect rendering rules, base body styles
+  - [x] Create `src/client/styles/c64-components.css` with inverse-video buttons, PETSCII box borders, cursor blink animation
+  - [x] Add Tailwind utilities: `text-c64-*`, `bg-c64-*`, `border-c64-*` for all 16 colors
+  - [x] Create `src/client/lib/petscii.ts` helper for rendering PETSCII characters by screen code
+  - [x] Create `src/client/components/ui/c64-box.tsx` — panel component with PETSCII box-drawing border
+  - [x] Verify: home page renders with blue bg, light blue text, PETSCII-bordered panel, no antialiasing
+- [x] Create CLAUDE.md with design system rules
+  - [x] Write project `CLAUDE.md` with mandatory C64 aesthetic rules (font, colors, layout, components, CSS)
+  - [x] Include task completion language for PR tracking
+- [x] Set up Hono RPC client for type-safe API calls
+  - [x] Create `src/client/lib/api.ts` with `hc` client typed against the Hono app
+  - [x] Create `src/shared/types.ts` for shared type definitions
+  - [x] Verify type inference works: calling `/api/health` from React with full types
+- [x] Verify production build and runtime
+  - [x] `bun run build` produces `dist/index.js` and `dist/static/*`
+  - [x] `bun dist/index.js` serves both API and SPA on a single port
+  - [x] Client-side routing works (navigate to a route, refresh, SPA loads)
