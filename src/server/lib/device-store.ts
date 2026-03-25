@@ -2,20 +2,27 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Device } from "@shared/types.ts";
 
-const DATA_PATH = "data/devices.json";
+const DEFAULT_DATA_PATH = "data/devices.json";
+
+/** Strip password from a device for API responses */
+export function toPublicDevice(device: Device): Omit<Device, "password"> {
+  const { password: _, ...pub } = device;
+  return pub;
+}
 
 export class DeviceStore {
   private devices: Map<string, Device> = new Map();
+  private readonly dataPath: string;
 
-  constructor() {
+  constructor(dataPath?: string) {
+    this.dataPath = dataPath ?? DEFAULT_DATA_PATH;
+    mkdirSync(dirname(this.dataPath), { recursive: true });
     this.load();
-    // Ensure data directory exists once at startup
-    mkdirSync(dirname(DATA_PATH), { recursive: true });
   }
 
   private load(): void {
     try {
-      const raw = readFileSync(DATA_PATH, "utf-8");
+      const raw = readFileSync(this.dataPath, "utf-8");
       const arr = JSON.parse(raw) as Device[];
       for (const device of arr) {
         this.devices.set(device.id, device);
@@ -26,7 +33,7 @@ export class DeviceStore {
   }
 
   private persist(): void {
-    writeFileSync(DATA_PATH, JSON.stringify(this.list(), null, 2));
+    writeFileSync(this.dataPath, JSON.stringify(this.list(), null, 2));
   }
 
   list(): Device[] {
@@ -68,10 +75,11 @@ export class DeviceStore {
   markOnline(id: string, lastSeen: string): void {
     const device = this.devices.get(id);
     if (!device) return;
-    const changed = !device.online || device.lastSeen !== lastSeen;
+    const wasOffline = !device.online;
     device.online = true;
     device.lastSeen = lastSeen;
-    if (changed) this.persist();
+    // Only persist on state transitions
+    if (wasOffline) this.persist();
   }
 
   markOffline(id: string): void {

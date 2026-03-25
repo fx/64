@@ -26,7 +26,7 @@ export function createEventRoutes(store: DeviceStore) {
             id: String(id++),
           })
           .catch(() => {
-            // Stream closed
+            unsubscribe();
           });
       });
 

@@ -1,10 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { Hono } from "hono";
-import { existsSync, unlinkSync, mkdirSync } from "node:fs";
+import { existsSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { createDeviceRoutes } from "../src/server/routes/devices.ts";
 import { DeviceStore } from "../src/server/lib/device-store.ts";
 
-const DATA_PATH = "data/devices.json";
+function testDataPath() {
+  return join(tmpdir(), `devices-route-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+}
 
 // Mock fetch for C64U API responses
 const originalFetch = globalThis.fetch;
@@ -39,11 +43,11 @@ function mockC64Fetch() {
 describe("Device Routes", () => {
   let app: Hono;
   let store: DeviceStore;
+  let dataPath: string;
 
   beforeEach(() => {
-    mkdirSync("data", { recursive: true });
-    if (existsSync(DATA_PATH)) unlinkSync(DATA_PATH);
-    store = new DeviceStore();
+    dataPath = testDataPath();
+    store = new DeviceStore(dataPath);
     const routes = createDeviceRoutes(store);
     app = new Hono().basePath("/api").route("/", routes);
     mockC64Fetch();
@@ -51,7 +55,7 @@ describe("Device Routes", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    if (existsSync(DATA_PATH)) unlinkSync(DATA_PATH);
+    if (existsSync(dataPath)) unlinkSync(dataPath);
   });
 
   it("GET /api/devices returns empty list initially", async () => {
@@ -72,6 +76,7 @@ describe("Device Routes", () => {
     expect(device.id).toBe("8D927F");
     expect(device.product).toBe("Ultimate 64");
     expect(device.online).toBe(true);
+    expect(device).not.toHaveProperty("password");
   });
 
   it("POST /api/devices returns 400 without ip", async () => {
@@ -81,6 +86,26 @@ describe("Device Routes", () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);
+  });
+
+  it("POST /api/devices returns 400 for invalid JSON", async () => {
+    const res = await app.request("/api/devices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "not json",
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/devices rejects non-private IPs", async () => {
+    const res = await app.request("/api/devices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ip: "8.8.8.8" }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("private");
   });
 
   it("POST /api/devices deduplicates by unique_id", async () => {
@@ -101,17 +126,18 @@ describe("Device Routes", () => {
     expect(devices[0].ip).toBe("192.168.1.43");
   });
 
-  it("GET /api/devices/:id returns device", async () => {
+  it("GET /api/devices/:id returns device without password", async () => {
     await app.request("/api/devices", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ip: "192.168.1.42" }),
+      body: JSON.stringify({ ip: "192.168.1.42", password: "secret" }),
     });
 
     const res = await app.request("/api/devices/8D927F");
     expect(res.status).toBe(200);
     const device = await res.json();
     expect(device.id).toBe("8D927F");
+    expect(device).not.toHaveProperty("password");
   });
 
   it("GET /api/devices/:id returns 404 for unknown", async () => {
@@ -134,6 +160,15 @@ describe("Device Routes", () => {
     expect(res.status).toBe(200);
     const device = await res.json();
     expect(device.name).toBe("My C64");
+  });
+
+  it("PUT /api/devices/:id returns 400 for invalid JSON", async () => {
+    const res = await app.request("/api/devices/8D927F", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: "not json",
+    });
+    expect(res.status).toBe(400);
   });
 
   it("DELETE /api/devices/:id removes device", async () => {
@@ -161,6 +196,15 @@ describe("Device Routes", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/devices/scan returns 400 for invalid JSON", async () => {
+    const res = await app.request("/api/devices/scan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "not json",
     });
     expect(res.status).toBe(400);
   });

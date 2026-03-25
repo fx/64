@@ -39,14 +39,15 @@ export async function scanSubnet(
       const info = await fetchDeviceInfo(ip, port, undefined, timeoutMs);
       if (!info) continue;
 
-      // Skip already-registered devices
-      if (store.has(info.unique_id)) continue;
+      const isNew = !store.has(info.unique_id);
+      const existing = store.get(info.unique_id);
 
       const device: Device = {
         id: info.unique_id,
-        name: info.hostname,
+        name: existing?.name ?? info.hostname,
         ip,
         port,
+        password: existing?.password,
         product: info.product,
         firmware: info.firmware_version,
         fpga: info.fpga_version,
@@ -58,7 +59,7 @@ export async function scanSubnet(
       discovered.push(device);
 
       emitDeviceEvent({
-        type: "device:discovered",
+        type: isNew ? "device:discovered" : "device:online",
         data: { id: device.id, ip: device.ip, product: device.product },
       });
     }
