@@ -278,7 +278,6 @@ describe("Device Routes", () => {
   });
 
   it("POST /api/devices returns 504 when info fetch times out", async () => {
-    let callCount = 0;
     globalThis.fetch = mock(async (input: string | URL | Request) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       if (url.includes("/v1/version")) {

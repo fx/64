@@ -143,17 +143,23 @@ describe("Proxy Routes", () => {
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (input instanceof Request) {
         capturedHeaders = input.headers;
+      } else if (init?.headers) {
+        if (init.headers instanceof Headers) {
+          capturedHeaders = init.headers;
+        } else {
+          capturedHeaders = new Headers(init.headers as HeadersInit);
+        }
       }
       return new Response(JSON.stringify({ errors: [] }), {
         headers: { "content-type": "application/json" },
       });
     }) as typeof fetch;
 
-    await app.request("/api/devices/ABC123/v1/version");
+    const res = await app.request("/api/devices/ABC123/v1/version");
+    expect(res.status).toBe(200);
 
-    // The proxy uses hono/proxy which passes headers differently
-    // Just verify the response succeeds with a password device
     expect(capturedHeaders).not.toBeNull();
+    expect(capturedHeaders!.get("X-Password")).toBe("secret123");
   });
 
   it("forwards query string to device via catch-all route", async () => {
