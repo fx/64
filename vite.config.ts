@@ -24,18 +24,16 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    server: {
+      host: "0.0.0.0",
+      allowedHosts: true,
+    },
     plugins: [
       devServer({
         entry: "src/server/index.ts",
         exclude: [
-          /^\/@.+$/,
-          /.*\.(ts|tsx|css|scss|sass|less|styl|stylus|pcss|postcss|sss)$/,
-          /^\/node_modules\/.*/,
-          /^\/src\/client\/.*/,
-          /^\/public\/.*/,
-          /^\/fonts\/.*/,
-          /^\/__vite.*/,
-          /^\/favicon\.ico$/,
+          // Only route /api/* to Hono; Vite handles everything else (SPA, assets, HMR)
+          /^(?!\/api\/).*/,
         ],
       }),
       tailwindcss(),

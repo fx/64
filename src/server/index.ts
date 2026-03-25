@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/bun";
 import health from "./routes/health.ts";
 import { createDeviceRoutes } from "./routes/devices.ts";
 import { createEventRoutes } from "./routes/events.ts";
@@ -27,17 +26,22 @@ const apiRoutes = app
 
 export type AppType = typeof apiRoutes;
 
-app.use("/static/*", serveStatic({ root: "./dist" }));
-app.use("/fonts/*", serveStatic({ root: "./public" }));
-app.use("/favicon.ico", serveStatic({ path: "./public/favicon.ico" }));
+// Static file serving — only in production (Bun runtime).
+// In dev mode, Vite serves static files directly.
+if (typeof globalThis.Bun !== "undefined") {
+  const { serveStatic } = await import("hono/bun");
+  app.use("/static/*", serveStatic({ root: "./dist" }));
+  app.use("/fonts/*", serveStatic({ root: "./public" }));
+  app.use("/favicon.ico", serveStatic({ path: "./public/favicon.ico" }));
 
-app.notFound(async (c) => {
-  const path = c.req.path;
-  if (path.startsWith("/static/") || path.startsWith("/fonts/") || path === "/favicon.ico") {
-    return c.notFound();
-  }
-  return serveStatic({ path: "./dist/static/index.html" })(c, async () => {});
-});
+  app.notFound(async (c) => {
+    const path = c.req.path;
+    if (path.startsWith("/static/") || path.startsWith("/fonts/") || path === "/favicon.ico") {
+      return c.notFound();
+    }
+    return serveStatic({ path: "./dist/static/index.html" })(c, async () => {});
+  });
+}
 
 // Start health checker in background
 startHealthChecker(store);
