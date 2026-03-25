@@ -1,51 +1,35 @@
 import { Hono } from "hono";
 import { proxy } from "hono/proxy";
+import type { Context } from "hono";
 import type { DeviceStore } from "../lib/device-store.ts";
+import type { Device } from "@shared/types.ts";
 import type {
   C64UInfoResponse,
   C64UVersionResponse,
   C64UConfigCategoriesResponse,
-  C64UConfigValuesResponse,
-  C64UConfigDetailResponse,
   C64UDrivesResponse,
   C64UDebugRegResponse,
   C64UActionResponse,
-  C64URunnerResponse,
-  C64UStreamResponse,
-  C64UFileInfoResponse,
-  C64UFileCreateResponse,
   ProxyErrorResponse,
 } from "@shared/c64u-types.ts";
 
 const PROXY_TIMEOUT_MS = 5000;
 
-function proxyError(message: string, status: number, c: { json: (data: ProxyErrorResponse, status: number) => Response }) {
-  return c.json({ errors: [message], proxy_error: true as const }, status);
+function proxyError(c: Context, message: string, status: number) {
+  return c.json({ errors: [message], proxy_error: true as const } satisfies ProxyErrorResponse, status);
 }
 
-/**
- * Forward a request to a C64U device via Hono's proxy() helper.
- * Returns the device response or a proxy error envelope.
- */
-async function forwardToDevice(
-  c: { req: { raw: Request; url: string }; json: (data: ProxyErrorResponse, status: number) => Response },
-  deviceIp: string,
-  devicePort: number,
-  devicePath: string,
-  password?: string,
-): Promise<Response> {
-  const targetUrl = `http://${deviceIp}:${devicePort}${devicePath}`;
+/** Forward a request to a C64U device. Returns the device response or a proxy error envelope. */
+async function forwardToDevice(c: Context, device: Device, devicePath: string): Promise<Response> {
+  const targetUrl = `http://${device.ip}:${device.port}${devicePath}`;
 
   const headers: Record<string, string> = {};
-  // Copy original headers
   for (const [key, value] of c.req.raw.headers.entries()) {
     headers[key] = value;
   }
-  // Inject X-Password if device has auth configured
-  if (password) {
-    headers["X-Password"] = password;
+  if (device.password) {
+    headers["X-Password"] = device.password;
   }
-  // Remove host header — it should reflect the target
   delete headers["host"];
 
   const controller = new AbortController();
@@ -58,430 +42,100 @@ async function forwardToDevice(
       signal: controller.signal,
     });
 
-    // Check for auth failure from device
     if (res.status === 403) {
-      return proxyError("Authentication failed — check device password", 403, c);
+      return proxyError(c, "Authentication failed — check device password", 403);
     }
-
     return res;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      return proxyError("Device did not respond", 504, c);
+      return proxyError(c, "Device did not respond", 504);
     }
-    return proxyError(`Cannot reach device at ${deviceIp}`, 502, c);
+    return proxyError(c, `Cannot reach device at ${device.ip}`, 502);
   } finally {
     clearTimeout(timer);
   }
 }
 
+/** Extract the /v1/... device path and query string from the proxy request URL */
+function extractDevicePath(c: Context): string {
+  const url = new URL(c.req.url);
+  const prefix = `/api/devices/${c.req.param("deviceId")}`;
+  return url.pathname.slice(prefix.length) + url.search;
+}
+
 export function createProxyRoutes(store: DeviceStore) {
   const proxyApp = new Hono();
 
-  /** Resolve device or return error response */
-  function resolveDevice(deviceId: string, c: { json: (data: ProxyErrorResponse, status: number) => Response }) {
-    const device = store.get(deviceId);
-    if (!device) {
-      return { error: proxyError("Device not found", 404, c) };
-    }
-    if (!device.online) {
-      return { error: proxyError("Device is offline", 503, c) };
-    }
-    return { device };
+  /** Resolve a device by ID, returning 404/503 proxy errors for missing/offline devices */
+  function resolveDevice(c: Context): Device | Response {
+    const device = store.get(c.req.param("deviceId"));
+    if (!device) return proxyError(c, "Device not found", 404);
+    if (!device.online) return proxyError(c, "Device is offline", 503);
+    return device;
   }
 
-  // ── About ──────────────────────────────────────────
+  /** Typed JSON proxy: resolve device, forward, parse JSON response with the given type */
+  async function typedJsonProxy<T>(c: Context, path: string): Promise<Response> {
+    const device = resolveDevice(c);
+    if (device instanceof Response) return device;
+    const res = await forwardToDevice(c, device, path);
+    if (res.headers.get("content-type")?.includes("application/json")) {
+      const data = (await res.json()) as T;
+      return c.json(data);
+    }
+    return res;
+  }
 
-  const aboutRoutes = proxyApp
-    .get("/devices/:deviceId/v1/info", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/info", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UInfoResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .get("/devices/:deviceId/v1/version", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/version", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UVersionResponse;
-        return c.json(data);
-      }
-      return res;
-    });
+  // ── Typed routes for Hono RPC inference ────────────
+  // Only endpoints with distinct response shapes get explicit routes.
+  // Everything else is handled by the catch-all below.
 
-  // ── Runners ────────────────────────────────────────
+  // About
+  const typedRoutes = proxyApp
+    .get("/devices/:deviceId/v1/info", (c) =>
+      typedJsonProxy<C64UInfoResponse>(c, "/v1/info"))
+    .get("/devices/:deviceId/v1/version", (c) =>
+      typedJsonProxy<C64UVersionResponse>(c, "/v1/version"))
 
-  const runnerRoutes = proxyApp
-    .put("/devices/:deviceId/v1/runners\\:sidplay", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/runners:sidplay${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .post("/devices/:deviceId/v1/runners\\:sidplay", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/runners:sidplay${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/runners\\:modplay", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/runners:modplay${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .post("/devices/:deviceId/v1/runners\\:modplay", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/runners:modplay${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/runners\\:load_prg", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/runners:load_prg${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .post("/devices/:deviceId/v1/runners\\:load_prg", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/runners:load_prg", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/runners\\:run_prg", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/runners:run_prg${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .post("/devices/:deviceId/v1/runners\\:run_prg", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/runners:run_prg", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/runners\\:run_crt", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/runners:run_crt${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .post("/devices/:deviceId/v1/runners\\:run_crt", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/runners:run_crt", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64URunnerResponse;
-        return c.json(data);
-      }
-      return res;
-    });
+    // Configuration
+    .get("/devices/:deviceId/v1/configs", (c) =>
+      typedJsonProxy<C64UConfigCategoriesResponse>(c, "/v1/configs"))
 
-  // ── Configuration ──────────────────────────────────
+    // Floppy Drives
+    .get("/devices/:deviceId/v1/drives", (c) =>
+      typedJsonProxy<C64UDrivesResponse>(c, "/v1/drives"))
 
-  const configRoutes = proxyApp
-    .get("/devices/:deviceId/v1/configs", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/configs", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UConfigCategoriesResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .post("/devices/:deviceId/v1/configs", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/configs", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/configs\\:load_from_flash", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/configs:load_from_flash", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/configs\\:save_to_flash", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/configs:save_to_flash", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/configs\\:reset_to_default", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/configs:reset_to_default", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    });
-
-  // ── Machine ────────────────────────────────────────
-
-  const machineRoutes = proxyApp
-    .put("/devices/:deviceId/v1/machine\\:reset", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/machine:reset", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/machine\\:reboot", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/machine:reboot", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/machine\\:pause", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/machine:pause", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/machine\\:resume", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/machine:resume", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/machine\\:poweroff", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/machine:poweroff", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/machine\\:menu_button", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/machine:menu_button", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/machine\\:writemem", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/machine:writemem${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .post("/devices/:deviceId/v1/machine\\:writemem", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/machine:writemem${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UActionResponse;
-        return c.json(data);
-      }
-      return res;
-    })
+    // Machine — readmem returns binary, debugreg has a unique response shape
     .get("/devices/:deviceId/v1/machine\\:readmem", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/machine:readmem${url.search}`, device.password);
-      // readmem returns binary (application/octet-stream) — pass through as-is
-      return res;
+      const device = resolveDevice(c);
+      if (device instanceof Response) return device;
+      return forwardToDevice(c, device, `/v1/machine:readmem${new URL(c.req.url).search}`);
     })
-    .get("/devices/:deviceId/v1/machine\\:debugreg", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/machine:debugreg", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UDebugRegResponse;
-        return c.json(data);
-      }
-      return res;
-    })
+    .get("/devices/:deviceId/v1/machine\\:debugreg", (c) =>
+      typedJsonProxy<C64UDebugRegResponse>(c, "/v1/machine:debugreg"))
     .put("/devices/:deviceId/v1/machine\\:debugreg", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/machine:debugreg${url.search}`, device.password);
+      const device = resolveDevice(c);
+      if (device instanceof Response) return device;
+      const res = await forwardToDevice(c, device, `/v1/machine:debugreg${new URL(c.req.url).search}`);
       if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UDebugRegResponse;
-        return c.json(data);
-      }
-      return res;
-    });
-
-  // ── Floppy Drives ──────────────────────────────────
-
-  const driveRoutes = proxyApp
-    .get("/devices/:deviceId/v1/drives", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const res = await forwardToDevice(c, device.ip, device.port, "/v1/drives", device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UDrivesResponse;
-        return c.json(data);
-      }
-      return res;
-    });
-
-  // ── Data Streams ───────────────────────────────────
-
-  const streamRoutes = proxyApp
-    .put("/devices/:deviceId/v1/streams/:stream\\:start", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const stream = c.req.param("stream");
-      const url = new URL(c.req.url);
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/streams/${stream}:start${url.search}`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UStreamResponse;
-        return c.json(data);
-      }
-      return res;
-    })
-    .put("/devices/:deviceId/v1/streams/:stream\\:stop", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-      const stream = c.req.param("stream");
-      const res = await forwardToDevice(c, device.ip, device.port, `/v1/streams/${stream}:stop`, device.password);
-      if (res.headers.get("content-type")?.includes("application/json")) {
-        const data = await res.json() as C64UStreamResponse;
-        return c.json(data);
+        return c.json((await res.json()) as C64UDebugRegResponse);
       }
       return res;
     });
 
   // ── Catch-all proxy ────────────────────────────────
-  // Forwards any /devices/:deviceId/v1/* that didn't match a typed route above.
-  // This handles config sub-paths, drive sub-commands, file operations, etc.
+  // Handles all /v1/* endpoints not matched above: runners, machine actions,
+  // config sub-paths, drive commands, streams, files.
+  // Responses are untyped (the catch-all returns C64UActionResponse for JSON).
 
   const catchAllRoutes = proxyApp
     .all("/devices/:deviceId/v1/*", async (c) => {
-      const result = resolveDevice(c.req.param("deviceId"), c);
-      if ("error" in result) return result.error;
-      const { device } = result;
-
-      // Extract the /v1/... portion from the URL path
-      const fullPath = new URL(c.req.url).pathname;
-      const prefix = `/api/devices/${c.req.param("deviceId")}`;
-      const devicePath = fullPath.slice(prefix.length);
-      const url = new URL(c.req.url);
-
-      const res = await forwardToDevice(c, device.ip, device.port, `${devicePath}${url.search}`, device.password);
+      const device = resolveDevice(c);
+      if (device instanceof Response) return device;
+      const res = await forwardToDevice(c, device, extractDevicePath(c));
+      if (res.headers.get("content-type")?.includes("application/json")) {
+        return c.json((await res.json()) as C64UActionResponse);
+      }
       return res;
     });
 
