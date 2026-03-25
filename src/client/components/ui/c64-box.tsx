@@ -12,8 +12,10 @@ export function C64Box({ title, children, width = 40 }: C64BoxProps) {
   const h = PETSCII_BOX.horizontal;
   const v = PETSCII_BOX.vertical;
 
+  const displayTitle = title?.toUpperCase().slice(0, innerWidth - 4) ?? "";
+
   const topBar = title
-    ? `${h} ${title.toUpperCase().slice(0, innerWidth - 4)} ${h.repeat(Math.max(0, innerWidth - title.length - 3))}`
+    ? `${h} ${displayTitle} ${h.repeat(Math.max(0, innerWidth - displayTitle.length - 3))}`
     : h.repeat(innerWidth);
 
   const topLine = `${PETSCII_BOX.topLeft}${topBar}${PETSCII_BOX.topRight}`;

@@ -12,7 +12,7 @@ Hono + Vite 8 + React 19 SPA monolith. Single-process server serving API routes 
 
 - **Server:** Hono (API routes under `/api/*`)
 - **Client:** React 19, TanStack Router (file-based), TanStack Query
-- **Styling:** Tailwind CSS 4, shadcn/ui v4 with Base UI
+- **Styling:** Tailwind CSS 4, Base UI
 - **Build:** Vite 8, `@hono/vite-dev-server`, `@hono/vite-build/bun`
 - **Runtime:** Bun
 
@@ -35,7 +35,7 @@ This project uses an authentic Commodore 64 visual design. ALL UI code MUST foll
 ### Font
 - Use `C64 Pro Mono` everywhere. No other fonts. No fallback rendering — `font-display: block`.
 - Font files are in `public/fonts/`. NEVER rename or modify them (license requirement).
-- To render PETSCII graphics: use `&#xEExx;` (screen code) or `&#xE0xx;` (charset 1) HTML entities.
+- To render PETSCII graphics: use `&#xEExx;` (screen code) or `&#xEFxx;` (PETSCII code) HTML entities.
 
 ### Colors
 - ONLY the 16 VIC-II colors from CSS variables `--c64-0-black` through `--c64-15-light-grey`.
@@ -62,7 +62,7 @@ This project uses an authentic Commodore 64 visual design. ALL UI code MUST foll
 - Font size: `16px` base (2x scale of 8px character cell).
 
 ### Tailwind
-- shadcn/ui components should be restyled to match. Override border-radius to 0, replace shadows with none, use C64 color variables only.
+- Override border-radius to 0, replace shadows with none, use C64 color variables only.
 - Tailwind utilities available: `text-c64-*`, `bg-c64-*`, `border-c64-*` for each of the 16 colors.
 
 ## Hono RPC
