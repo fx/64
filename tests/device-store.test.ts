@@ -107,6 +107,64 @@ describe("DeviceStore", () => {
   });
 });
 
+describe("DeviceStore.updateDeviceInfo", () => {
+  let dataPath: string;
+
+  beforeEach(() => {
+    dataPath = testDataPath();
+  });
+
+  afterEach(() => {
+    if (existsSync(dataPath)) unlinkSync(dataPath);
+  });
+
+  it("updates product, firmware, and fpga fields", () => {
+    const store = new DeviceStore(dataPath);
+    store.upsert(makeDevice({ product: "Old", firmware: "1.0", fpga: "01" }));
+    store.updateDeviceInfo("ABC123", { product: "Ultimate 64", firmware: "3.12", fpga: "11F" });
+
+    const device = store.get("ABC123");
+    expect(device?.product).toBe("Ultimate 64");
+    expect(device?.firmware).toBe("3.12");
+    expect(device?.fpga).toBe("11F");
+  });
+
+  it("updates name when provided", () => {
+    const store = new DeviceStore(dataPath);
+    store.upsert(makeDevice());
+    store.updateDeviceInfo("ABC123", { product: "X", firmware: "Y", fpga: "Z", name: "New Name" });
+
+    expect(store.get("ABC123")?.name).toBe("New Name");
+  });
+
+  it("does not update name when not provided", () => {
+    const store = new DeviceStore(dataPath);
+    store.upsert(makeDevice({ name: "Original" }));
+    store.updateDeviceInfo("ABC123", { product: "X", firmware: "Y", fpga: "Z" });
+
+    expect(store.get("ABC123")?.name).toBe("Original");
+  });
+
+  it("does nothing for non-existent device", () => {
+    const store = new DeviceStore(dataPath);
+    // Should not throw
+    store.updateDeviceInfo("NONEXISTENT", { product: "X", firmware: "Y", fpga: "Z" });
+    expect(store.get("NONEXISTENT")).toBeUndefined();
+  });
+
+  it("persists info changes to disk", () => {
+    const store1 = new DeviceStore(dataPath);
+    store1.upsert(makeDevice());
+    store1.updateDeviceInfo("ABC123", { product: "New Product", firmware: "4.0", fpga: "22A" });
+
+    const store2 = new DeviceStore(dataPath);
+    const device = store2.get("ABC123");
+    expect(device?.product).toBe("New Product");
+    expect(device?.firmware).toBe("4.0");
+    expect(device?.fpga).toBe("22A");
+  });
+});
+
 describe("toPublicDevice", () => {
   it("strips password from device", () => {
     const device = makeDevice({ password: "secret123" });
