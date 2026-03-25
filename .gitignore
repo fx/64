@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.tailscale/
+data/
+*.log
