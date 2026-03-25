@@ -21,8 +21,7 @@ export function C64Select({
     <div className="inline-block">
       {label && <label className="block mb-[1em]">{label}</label>}
       <select
-        className={`bg-c64-6-blue text-c64-14-light-blue border-none outline-none font-['C64_Pro_Mono',monospace] text-[16px] leading-[1] tracking-[0] p-[0.5em_1em] cursor-pointer focus:bg-c64-14-light-blue focus:text-c64-6-blue appearance-none ${className}`}
-        style={{ borderRadius: 0, boxShadow: "none" }}
+        className={`c64-control cursor-pointer appearance-none ${className}`}
         {...props}
       >
         {options.map((opt) => (

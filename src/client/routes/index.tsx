@@ -113,14 +113,7 @@ function DeviceListPage() {
                 </span>
               </div>
               {/* Device rows */}
-              {devices.map(
-                (device: {
-                  id: string;
-                  name: string;
-                  ip: string;
-                  product: string;
-                  online: boolean;
-                }) => (
+              {devices.map((device) => (
                   <div
                     key={device.id}
                     className="flex items-center py-[0.25em]"

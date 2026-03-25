@@ -9,6 +9,12 @@ import { PETSCII_BOX } from "../../lib/petscii.ts";
 
 const DEFAULT_EXTENSIONS = [".d64", ".d71", ".d81", ".g64", ".g71"];
 
+const INNER_WIDTH = 30;
+
+function pad(text: string, width: number) {
+  return text + " ".repeat(Math.max(0, width - text.length));
+}
+
 interface C64FileDropZoneProps {
   onFile: (file: File) => void;
   accept?: string[];
@@ -53,11 +59,6 @@ export function C64FileDropZone({
     [onFile, validateFile],
   );
 
-  const pad = (text: string, width: number) =>
-    text + " ".repeat(Math.max(0, width - text.length));
-
-  const innerWidth = 30;
-
   return (
     <div
       className={`c64-box-border cursor-pointer ${dragOver ? "bg-c64-14-light-blue text-c64-6-blue" : ""}`}
@@ -71,27 +72,27 @@ export function C64FileDropZone({
     >
       <div>
         {PETSCII_BOX.topLeft}
-        {h.repeat(innerWidth)}
+        {h.repeat(INNER_WIDTH)}
         {PETSCII_BOX.topRight}
       </div>
       <div>
         {v}
-        {pad(" DROP DISK IMAGE HERE", innerWidth)}
+        {pad(" DROP DISK IMAGE HERE", INNER_WIDTH)}
         {v}
       </div>
       <div>
         {v}
-        {pad(" OR CLICK TO BROWSE", innerWidth)}
+        {pad(" OR CLICK TO BROWSE", INNER_WIDTH)}
         {v}
       </div>
       <div>
         {v}
-        {pad(" " + accept.join(" "), innerWidth)}
+        {pad(" " + accept.join(" "), INNER_WIDTH)}
         {v}
       </div>
       <div>
         {PETSCII_BOX.bottomLeft}
-        {h.repeat(innerWidth)}
+        {h.repeat(INNER_WIDTH)}
         {PETSCII_BOX.bottomRight}
       </div>
       <input
