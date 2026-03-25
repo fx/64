@@ -196,25 +196,25 @@ src/client/
   - [x] Refresh button to re-fetch device list
   - [x] TanStack Query hooks: `useDevices()` for list, `useRegisterDevice()` mutation, `useDeleteDevice()` mutation
   - [x] Wire to existing APIs: `GET /api/devices`, `POST /api/devices`, `DELETE /api/devices/:id`
-- [ ] Build device dashboard page at `/devices/$deviceId`
-  - [ ] Create TanStack Router route `src/client/routes/devices/$deviceId.tsx`
-  - [ ] Device info panel: product, firmware, FPGA, hostname, unique ID, online status, last seen
-  - [ ] TanStack Query hooks: `useDeviceInfo(id)`, `useDriveStatus(id)`
-  - [ ] Wire to: `GET /api/devices/:id/v1/info`, `GET /api/devices/:id/v1/drives`
-- [ ] Build drive status panel on device dashboard
-  - [ ] Show drive A and B: enabled/disabled, type, bus ID, mounted image or "NO DISK"
-  - [ ] "REMOVE DISK" button per drive → `PUT /api/devices/:id/v1/drives/<drive>:remove`
-- [ ] Build machine controls panel on device dashboard
-  - [ ] RESET button → `PUT /v1/machine:reset`
-  - [ ] REBOOT button → `PUT /v1/machine:reboot`
-  - [ ] PAUSE / RESUME toggle → `PUT /v1/machine:pause` / `PUT /v1/machine:resume`
-  - [ ] POWER OFF button (with confirmation dialog) → `PUT /v1/machine:poweroff`
-  - [ ] MENU button → `PUT /v1/machine:menu_button`
-  - [ ] `useDeviceActions(id)` hook with mutations for all machine controls
-- [ ] Build upload-and-mount panel on device dashboard
-  - [ ] Implement `POST /api/devices/:deviceId/upload-mount` server endpoint (multipart: file + drive + mode → forward to `POST /v1/drives/<drive>:mount`)
-  - [ ] Drive selector (A/B) and mount mode selector (readwrite/readonly/unlinked)
-  - [ ] File drop zone / file picker accepting `.d64`, `.d71`, `.d81`, `.g64`, `.g71`
-  - [ ] On file selected: upload to server → mount on device → show success/error toast
-  - [ ] Mount-by-path input: text field for path on device filesystem → `PUT /v1/drives/<drive>:mount?image=<path>`
-  - [ ] Success/error feedback via C64Toast
+- [x] Build device dashboard page at `/devices/$deviceId`
+  - [x] Create TanStack Router route `src/client/routes/devices/$deviceId.tsx`
+  - [x] Device info panel: product, firmware, FPGA, hostname, unique ID, online status, last seen
+  - [x] TanStack Query hooks: `useDeviceInfo(id)`, `useDriveStatus(id)`
+  - [x] Wire to: `GET /api/devices/:id/v1/info`, `GET /api/devices/:id/v1/drives`
+- [x] Build drive status panel on device dashboard
+  - [x] Show drive A and B: enabled/disabled, type, bus ID, mounted image or "NO DISK"
+  - [x] "REMOVE DISK" button per drive → `PUT /api/devices/:id/v1/drives/<drive>:remove`
+- [x] Build machine controls panel on device dashboard
+  - [x] RESET button → `PUT /v1/machine:reset`
+  - [x] REBOOT button → `PUT /v1/machine:reboot`
+  - [x] PAUSE / RESUME toggle → `PUT /v1/machine:pause` / `PUT /v1/machine:resume`
+  - [x] POWER OFF button (with confirmation dialog) → `PUT /v1/machine:poweroff`
+  - [x] MENU button → `PUT /v1/machine:menu_button`
+  - [x] `useDeviceActions(id)` hook with mutations for all machine controls
+- [x] Build upload-and-mount panel on device dashboard
+  - [x] Implement `POST /api/devices/:deviceId/upload-mount` server endpoint (multipart: file + drive + mode → forward to `POST /v1/drives/<drive>:mount`)
+  - [x] Drive selector (A/B) and mount mode selector (readwrite/readonly/unlinked)
+  - [x] File drop zone / file picker accepting `.d64`, `.d71`, `.d81`, `.g64`, `.g71`
+  - [x] On file selected: upload to server → mount on device → show success/error toast
+  - [x] Mount-by-path input: text field for path on device filesystem → `PUT /v1/drives/<drive>:mount?image=<path>`
+  - [x] Success/error feedback via C64Toast
