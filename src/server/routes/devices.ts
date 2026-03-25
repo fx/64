@@ -47,12 +47,16 @@ export function createDeviceRoutes(store: DeviceStore) {
       // Probe device
       const version = await probeVersion(body.ip, port, body.password);
       if (!version.ok) {
-        return c.json({ error: version.reason }, 502);
+        const status = version.reason.includes("Authentication") ? 403
+          : version.reason.includes("timeout") ? 504 : 502;
+        return c.json({ error: version.reason }, status as 403);
       }
 
       const info = await fetchDeviceInfo(body.ip, port, body.password);
       if (!info.ok) {
-        return c.json({ error: info.reason }, 502);
+        const status = info.reason.includes("Authentication") ? 403
+          : info.reason.includes("timeout") ? 504 : 502;
+        return c.json({ error: info.reason }, status as 403);
       }
 
       const device = store.upsert({
