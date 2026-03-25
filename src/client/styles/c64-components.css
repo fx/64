@@ -1,0 +1,43 @@
+/* Inverse-video buttons */
+.c64-button {
+  font-family: 'C64 Pro Mono', monospace;
+  font-size: 16px;
+  line-height: 1;
+  background: var(--c64-fg);
+  color: var(--c64-bg);
+  border: none;
+  border-radius: 0;
+  padding: 0.5em 1em;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.c64-button:hover,
+.c64-button:focus {
+  background: var(--c64-accent);
+  color: var(--c64-bg);
+}
+
+/* Cursor blink animation */
+@keyframes c64-cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.animate-c64-cursor {
+  animation: c64-cursor-blink 1s step-end infinite;
+}
+
+/* Reverse video for selected/active items */
+.c64-reverse {
+  background: var(--c64-fg);
+  color: var(--c64-bg);
+}
+
+/* PETSCII box-drawing border */
+.c64-box-border {
+  font-family: 'C64 Pro Mono', monospace;
+  font-size: 16px;
+  line-height: 1;
+  white-space: pre;
+}

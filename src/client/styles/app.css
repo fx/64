@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/* C64 color utilities */
+@utility bg-c64-0-black { background-color: var(--c64-0-black); }
+@utility bg-c64-1-white { background-color: var(--c64-1-white); }
+@utility bg-c64-2-red { background-color: var(--c64-2-red); }
+@utility bg-c64-3-cyan { background-color: var(--c64-3-cyan); }
+@utility bg-c64-4-purple { background-color: var(--c64-4-purple); }
+@utility bg-c64-5-green { background-color: var(--c64-5-green); }
+@utility bg-c64-6-blue { background-color: var(--c64-6-blue); }
+@utility bg-c64-7-yellow { background-color: var(--c64-7-yellow); }
+@utility bg-c64-8-orange { background-color: var(--c64-8-orange); }
+@utility bg-c64-9-brown { background-color: var(--c64-9-brown); }
+@utility bg-c64-10-light-red { background-color: var(--c64-10-light-red); }
+@utility bg-c64-11-dark-grey { background-color: var(--c64-11-dark-grey); }
+@utility bg-c64-12-grey { background-color: var(--c64-12-grey); }
+@utility bg-c64-13-light-green { background-color: var(--c64-13-light-green); }
+@utility bg-c64-14-light-blue { background-color: var(--c64-14-light-blue); }
+@utility bg-c64-15-light-grey { background-color: var(--c64-15-light-grey); }
+
+@utility text-c64-0-black { color: var(--c64-0-black); }
+@utility text-c64-1-white { color: var(--c64-1-white); }
+@utility text-c64-2-red { color: var(--c64-2-red); }
+@utility text-c64-3-cyan { color: var(--c64-3-cyan); }
+@utility text-c64-4-purple { color: var(--c64-4-purple); }
+@utility text-c64-5-green { color: var(--c64-5-green); }
+@utility text-c64-6-blue { color: var(--c64-6-blue); }
+@utility text-c64-7-yellow { color: var(--c64-7-yellow); }
+@utility text-c64-8-orange { color: var(--c64-8-orange); }
+@utility text-c64-9-brown { color: var(--c64-9-brown); }
+@utility text-c64-10-light-red { color: var(--c64-10-light-red); }
+@utility text-c64-11-dark-grey { color: var(--c64-11-dark-grey); }
+@utility text-c64-12-grey { color: var(--c64-12-grey); }
+@utility text-c64-13-light-green { color: var(--c64-13-light-green); }
+@utility text-c64-14-light-blue { color: var(--c64-14-light-blue); }
+@utility text-c64-15-light-grey { color: var(--c64-15-light-grey); }
+
+@utility border-c64-0-black { border-color: var(--c64-0-black); }
+@utility border-c64-1-white { border-color: var(--c64-1-white); }
+@utility border-c64-2-red { border-color: var(--c64-2-red); }
+@utility border-c64-3-cyan { border-color: var(--c64-3-cyan); }
+@utility border-c64-4-purple { border-color: var(--c64-4-purple); }
+@utility border-c64-5-green { border-color: var(--c64-5-green); }
+@utility border-c64-6-blue { border-color: var(--c64-6-blue); }
+@utility border-c64-7-yellow { border-color: var(--c64-7-yellow); }
+@utility border-c64-8-orange { border-color: var(--c64-8-orange); }
+@utility border-c64-9-brown { border-color: var(--c64-9-brown); }
+@utility border-c64-10-light-red { border-color: var(--c64-10-light-red); }
+@utility border-c64-11-dark-grey { border-color: var(--c64-11-dark-grey); }
+@utility border-c64-12-grey { border-color: var(--c64-12-grey); }
+@utility border-c64-13-light-green { border-color: var(--c64-13-light-green); }
+@utility border-c64-14-light-blue { border-color: var(--c64-14-light-blue); }
+@utility border-c64-15-light-grey { border-color: var(--c64-15-light-grey); }

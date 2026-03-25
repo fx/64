@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => {
       }),
       build({
         entry: "src/server/index.ts",
-        output: "dist/index.js",
+        output: "index.js",
       }),
     ],
   };
