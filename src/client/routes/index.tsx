@@ -27,9 +27,7 @@ function HomePage() {
             <span className="animate-c64-cursor">{"\u2588"}</span>
           )}
           {healthQuery.isSuccess && (
-            <>
-              <span>SYSTEM STATUS: {healthQuery.data.status.toUpperCase()}</span>
-            </>
+            <span>SYSTEM STATUS: {healthQuery.data.status.toUpperCase()}</span>
           )}
           {healthQuery.isError && (
             <span className="text-c64-2-red">?SYSTEM ERROR</span>

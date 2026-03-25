@@ -31,8 +31,7 @@ export function C64Box({ title, children, width = 40 }: C64BoxProps) {
           </div>
         ) : (
           <div className="c64-box-content">
-            {/* Render children between vertical bars */}
-            <BoxContent v={v} innerWidth={innerWidth}>
+            <BoxContent v={v}>
               {children}
             </BoxContent>
           </div>
@@ -48,12 +47,10 @@ function BoxContent({
   children,
 }: {
   v: string;
-  innerWidth: number;
   children: ReactNode;
 }) {
   return (
     <div className="inline-block">
-      {/* Vertical bars framing content */}
       <div className="flex">
         <span>{v}</span>
         <div className="flex-1 px-[1ch]">{children}</div>
