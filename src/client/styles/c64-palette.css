@@ -1,0 +1,29 @@
+:root {
+  /* C64 VIC-II Colodore Palette — 16 colors */
+  --c64-0-black:        #000000;
+  --c64-1-white:        #FFFFFF;
+  --c64-2-red:          #96282E;
+  --c64-3-cyan:         #5BD6CE;
+  --c64-4-purple:       #9F2DAD;
+  --c64-5-green:        #41B936;
+  --c64-6-blue:         #2724C4;
+  --c64-7-yellow:       #EFF347;
+  --c64-8-orange:       #9F4815;
+  --c64-9-brown:        #5E3500;
+  --c64-10-light-red:   #DA5F66;
+  --c64-11-dark-grey:   #474747;
+  --c64-12-grey:        #787878;
+  --c64-13-light-green: #91FF84;
+  --c64-14-light-blue:  #6864FF;
+  --c64-15-light-grey:  #AEAEAE;
+
+  /* Semantic aliases */
+  --c64-bg:             var(--c64-6-blue);
+  --c64-fg:             var(--c64-14-light-blue);
+  --c64-border:         var(--c64-14-light-blue);
+  --c64-accent:         var(--c64-3-cyan);
+  --c64-danger:         var(--c64-2-red);
+  --c64-success:        var(--c64-5-green);
+  --c64-warning:        var(--c64-7-yellow);
+  --c64-muted:          var(--c64-11-dark-grey);
+}
