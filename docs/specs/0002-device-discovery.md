@@ -89,37 +89,37 @@ data: { "id": "ABC123", "ip": "192.168.1.55", "product": "Ultimate 64" }
 
 ## Acceptance Criteria
 
-- [ ] `POST /api/devices` registers a device by IP and fetches its info
-- [ ] `GET /api/devices` lists all registered devices with online/offline status
-- [ ] `POST /api/devices/scan` discovers C64U devices on a subnet
-- [ ] Health-check loop detects offline/online transitions
-- [ ] SSE stream emits events on status changes
-- [ ] Device registry persists across server restarts
-- [ ] Duplicate registration (same unique_id) updates existing entry
+- [x] `POST /api/devices` registers a device by IP and fetches its info
+- [x] `GET /api/devices` lists all registered devices with online/offline status
+- [x] `POST /api/devices/scan` discovers C64U devices on a subnet
+- [x] Health-check loop detects offline/online transitions
+- [x] SSE stream emits events on status changes
+- [x] Device registry persists across server restarts
+- [x] Duplicate registration (same unique_id) updates existing entry
 
 ## Tasks
 
-- [ ] Implement device registry with JSON file persistence
-  - [ ] Create `Device` TypeScript interface and validation
-  - [ ] Implement `DeviceStore` class: load from `data/devices.json` on startup, write on change
-  - [ ] CRUD operations: add, update, remove, get, list
-  - [ ] Deduplicate by `unique_id` (upsert on re-registration)
-- [ ] Implement manual device registration API
-  - [ ] `POST /api/devices` — accept `{ ip, port?, password?, name? }`, probe device with `GET /v1/version` + `GET /v1/info`, save to registry
-  - [ ] `GET /api/devices` — list all registered devices with online/offline status
-  - [ ] `GET /api/devices/:id` — get single device details
-  - [ ] `PUT /api/devices/:id` — update device (name, password, ip)
-  - [ ] `DELETE /api/devices/:id` — remove device from registry
-- [ ] Implement subnet network scanner
-  - [ ] `POST /api/devices/scan` — accept `{ subnet }`, scan IPs in parallel (concurrency-limited to 50)
-  - [ ] Probe each IP with `GET /v1/version` (2s timeout), follow up with `GET /v1/info` on success
-  - [ ] Return list of newly discovered devices (skip already-registered)
-- [ ] Implement health-check polling loop
-  - [ ] Background loop polling `GET /v1/version` for each registered device
-  - [ ] Configurable base interval (default 30s)
-  - [ ] On failure: mark offline, exponential backoff (30s → 60s → 120s → 5min cap)
-  - [ ] On recovery: refresh device info via `GET /v1/info`, mark online, reset backoff
-- [ ] Implement SSE stream for device status events
-  - [ ] `GET /api/events/devices` — SSE endpoint emitting `device:online`, `device:offline`, `device:discovered` events
-  - [ ] Emit events from health-check loop and scan results
-  - [ ] New connections receive current device list as initial events
+- [x] Implement device registry with JSON file persistence
+  - [x] Create `Device` TypeScript interface and validation
+  - [x] Implement `DeviceStore` class: load from `data/devices.json` on startup, write on change
+  - [x] CRUD operations: add, update, remove, get, list
+  - [x] Deduplicate by `unique_id` (upsert on re-registration)
+- [x] Implement manual device registration API
+  - [x] `POST /api/devices` — accept `{ ip, port?, password?, name? }`, probe device with `GET /v1/version` + `GET /v1/info`, save to registry
+  - [x] `GET /api/devices` — list all registered devices with online/offline status
+  - [x] `GET /api/devices/:id` — get single device details
+  - [x] `PUT /api/devices/:id` — update device (name, password, ip)
+  - [x] `DELETE /api/devices/:id` — remove device from registry
+- [x] Implement subnet network scanner
+  - [x] `POST /api/devices/scan` — accept `{ subnet }`, scan IPs in parallel (concurrency-limited to 50)
+  - [x] Probe each IP with `GET /v1/version` (2s timeout), follow up with `GET /v1/info` on success
+  - [x] Return list of newly discovered devices (skip already-registered)
+- [x] Implement health-check polling loop
+  - [x] Background loop polling `GET /v1/version` for each registered device
+  - [x] Configurable base interval (default 30s)
+  - [x] On failure: mark offline, exponential backoff (30s → 60s → 120s → 5min cap)
+  - [x] On recovery: refresh device info via `GET /v1/info`, mark online, reset backoff
+- [x] Implement SSE stream for device status events
+  - [x] `GET /api/events/devices` — SSE endpoint emitting `device:online`, `device:offline`, `device:discovered` events
+  - [x] Emit events from health-check loop and scan results
+  - [x] New connections receive current device list as initial events
