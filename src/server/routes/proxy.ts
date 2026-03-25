@@ -81,7 +81,7 @@ export function createProxyRoutes(store: DeviceStore) {
     const res = await forwardToDevice(c, device, path);
     if (res.headers.get("content-type")?.includes("application/json")) {
       const data = (await res.json()) as T;
-      return c.json(data);
+      return c.json(data, res.status as 200);
     }
     return res;
   }
@@ -91,7 +91,7 @@ export function createProxyRoutes(store: DeviceStore) {
   // Everything else is handled by the catch-all below.
 
   // About
-  const typedRoutes = proxyApp
+  proxyApp
     .get("/devices/:deviceId/v1/info", (c) =>
       typedJsonProxy<C64UInfoResponse>(c, "/v1/info"))
     .get("/devices/:deviceId/v1/version", (c) =>
@@ -118,7 +118,7 @@ export function createProxyRoutes(store: DeviceStore) {
       if (device instanceof Response) return device;
       const res = await forwardToDevice(c, device, `/v1/machine:debugreg${new URL(c.req.url).search}`);
       if (res.headers.get("content-type")?.includes("application/json")) {
-        return c.json((await res.json()) as C64UDebugRegResponse);
+        return c.json((await res.json()) as C64UDebugRegResponse, res.status as 200);
       }
       return res;
     });
@@ -128,13 +128,13 @@ export function createProxyRoutes(store: DeviceStore) {
   // config sub-paths, drive commands, streams, files.
   // Responses are untyped (the catch-all returns C64UActionResponse for JSON).
 
-  const catchAllRoutes = proxyApp
+  proxyApp
     .all("/devices/:deviceId/v1/*", async (c) => {
       const device = resolveDevice(c);
       if (device instanceof Response) return device;
       const res = await forwardToDevice(c, device, extractDevicePath(c));
       if (res.headers.get("content-type")?.includes("application/json")) {
-        return c.json((await res.json()) as C64UActionResponse);
+        return c.json((await res.json()) as C64UActionResponse, res.status as 200);
       }
       return res;
     });

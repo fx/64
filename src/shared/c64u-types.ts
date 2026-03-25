@@ -1,5 +1,10 @@
 // C64 Ultimate device REST API response types
 // Reference: docs/c64.md
+//
+// C64UInfoResponse and C64UVersionResponse are canonical aliases for
+// C64DeviceInfo and C64VersionResponse in types.ts — single source of truth.
+
+import type { C64DeviceInfo, C64VersionResponse } from "./types.ts";
 
 /** Base response — every C64U JSON response includes an errors array */
 export interface C64UBaseResponse {
@@ -8,18 +13,8 @@ export interface C64UBaseResponse {
 
 // ── About ──────────────────────────────────────────────
 
-export interface C64UVersionResponse extends C64UBaseResponse {
-  version: string;
-}
-
-export interface C64UInfoResponse extends C64UBaseResponse {
-  product: string;
-  firmware_version: string;
-  fpga_version: string;
-  core_version: string;
-  hostname: string;
-  unique_id: string;
-}
+export type C64UVersionResponse = C64VersionResponse;
+export type C64UInfoResponse = C64DeviceInfo;
 
 // ── Configuration ──────────────────────────────────────
 
