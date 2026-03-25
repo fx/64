@@ -1,19 +1,27 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+function extractErrorMessage(body: unknown, fallback: string): string {
+  return (
+    (body as { errors?: string[] })?.errors?.[0] ||
+    (body as { error?: string })?.error ||
+    fallback
+  );
+}
+
+async function throwIfNotOk(res: Response, fallback: string): Promise<void> {
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(extractErrorMessage(body, fallback));
+  }
+}
+
 async function deviceAction(
   deviceId: string,
   path: string,
   method = "PUT",
 ): Promise<void> {
   const res = await fetch(`/api/devices/${deviceId}/v1/${path}`, { method });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    const msg =
-      (body as { errors?: string[] })?.errors?.[0] ||
-      (body as { error?: string })?.error ||
-      "Action failed";
-    throw new Error(msg);
-  }
+  await throwIfNotOk(res, "Action failed");
 }
 
 export function useDeviceActions(deviceId: string) {
@@ -88,14 +96,7 @@ export function useDeviceActions(deviceId: string) {
         method: "POST",
         body: form,
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        const msg =
-          (body as { errors?: string[] })?.errors?.[0] ||
-          (body as { error?: string })?.error ||
-          "Upload failed";
-        throw new Error(msg);
-      }
+      await throwIfNotOk(res, "Upload failed");
     },
     onSuccess: invalidateDrives,
   });

@@ -14,7 +14,7 @@ export function MachineControls({ deviceId }: MachineControlsProps) {
   const [confirmPowerOff, setConfirmPowerOff] = useState(false);
 
   const handleAction = (
-    action: { mutate: (v: void, opts: { onSuccess: () => void; onError: (e: Error) => void }) => void; isPending: boolean },
+    action: { mutate: (v: void, opts: { onSuccess: () => void; onError: (e: Error) => void }) => void },
     label: string,
   ) => {
     action.mutate(undefined, {
