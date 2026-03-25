@@ -41,3 +41,24 @@
   line-height: 1;
   white-space: pre;
 }
+
+/* Form control base (input, select) */
+.c64-control {
+  font-family: 'C64 Pro Mono', monospace;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0;
+  background: var(--c64-bg);
+  color: var(--c64-fg);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  padding: 0.5em 1em;
+  caret-color: transparent;
+}
+
+.c64-control:focus {
+  background: var(--c64-fg);
+  color: var(--c64-bg);
+}
