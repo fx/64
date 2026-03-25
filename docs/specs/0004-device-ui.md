@@ -182,20 +182,20 @@ src/client/
 
 ## Tasks
 
-- [ ] Build C64-styled UI primitive components
-  - [ ] `C64Input` — text input with underscore cursor, inverse on focus, C64 palette
-  - [ ] `C64Button` — inverse-video button component (extends existing `.c64-button`)
-  - [ ] `C64Select` — dropdown selector with C64 styling
-  - [ ] `C64Table` — data table with PETSCII borders
-  - [ ] `C64StatusBadge` — online (green block) / offline (red block) indicator
-  - [ ] `C64FileDropZone` — drag-and-drop area with PETSCII border, file type validation (.d64/.d71/.d81/.g64/.g71)
-  - [ ] `C64Toast` — success/error notification bar (bottom of screen, auto-dismiss)
-- [ ] Build device list page (replace current welcome screen at `/`)
-  - [ ] Device list showing name, IP, product type, online/offline badge, OPEN/DELETE buttons
-  - [ ] Add device form: IP input + optional name + optional password + REGISTER button
-  - [ ] Refresh button to re-fetch device list
-  - [ ] TanStack Query hooks: `useDevices()` for list, `useRegisterDevice()` mutation, `useDeleteDevice()` mutation
-  - [ ] Wire to existing APIs: `GET /api/devices`, `POST /api/devices`, `DELETE /api/devices/:id`
+- [x] Build C64-styled UI primitive components
+  - [x] `C64Input` — text input with underscore cursor, inverse on focus, C64 palette
+  - [x] `C64Button` — inverse-video button component (extends existing `.c64-button`)
+  - [x] `C64Select` — dropdown selector with C64 styling
+  - [x] `C64Table` — data table with PETSCII borders
+  - [x] `C64StatusBadge` — online (green block) / offline (red block) indicator
+  - [x] `C64FileDropZone` — drag-and-drop area with PETSCII border, file type validation (.d64/.d71/.d81/.g64/.g71)
+  - [x] `C64Toast` — success/error notification bar (bottom of screen, auto-dismiss)
+- [x] Build device list page (replace current welcome screen at `/`)
+  - [x] Device list showing name, IP, product type, online/offline badge, OPEN/DELETE buttons
+  - [x] Add device form: IP input + optional name + optional password + REGISTER button
+  - [x] Refresh button to re-fetch device list
+  - [x] TanStack Query hooks: `useDevices()` for list, `useRegisterDevice()` mutation, `useDeleteDevice()` mutation
+  - [x] Wire to existing APIs: `GET /api/devices`, `POST /api/devices`, `DELETE /api/devices/:id`
 - [ ] Build device dashboard page at `/devices/$deviceId`
   - [ ] Create TanStack Router route `src/client/routes/devices/$deviceId.tsx`
   - [ ] Device info panel: product, firmware, FPGA, hostname, unique ID, online status, last seen
