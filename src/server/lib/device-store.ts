@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Device } from "@shared/types.ts";
 
@@ -9,27 +9,23 @@ export class DeviceStore {
 
   constructor() {
     this.load();
+    // Ensure data directory exists once at startup
+    mkdirSync(dirname(DATA_PATH), { recursive: true });
   }
 
   private load(): void {
     try {
-      if (existsSync(DATA_PATH)) {
-        const raw = readFileSync(DATA_PATH, "utf-8");
-        const arr = JSON.parse(raw) as Device[];
-        for (const device of arr) {
-          this.devices.set(device.id, device);
-        }
+      const raw = readFileSync(DATA_PATH, "utf-8");
+      const arr = JSON.parse(raw) as Device[];
+      for (const device of arr) {
+        this.devices.set(device.id, device);
       }
     } catch {
-      // Start with empty store if file is corrupt
+      // Start with empty store if file doesn't exist or is corrupt
     }
   }
 
   private persist(): void {
-    const dir = dirname(DATA_PATH);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
     writeFileSync(DATA_PATH, JSON.stringify(this.list(), null, 2));
   }
 
@@ -71,19 +67,18 @@ export class DeviceStore {
 
   markOnline(id: string, lastSeen: string): void {
     const device = this.devices.get(id);
-    if (device) {
-      device.online = true;
-      device.lastSeen = lastSeen;
-      this.persist();
-    }
+    if (!device) return;
+    const changed = !device.online || device.lastSeen !== lastSeen;
+    device.online = true;
+    device.lastSeen = lastSeen;
+    if (changed) this.persist();
   }
 
   markOffline(id: string): void {
     const device = this.devices.get(id);
-    if (device) {
-      device.online = false;
-      this.persist();
-    }
+    if (!device || !device.online) return;
+    device.online = false;
+    this.persist();
   }
 
   updateDeviceInfo(id: string, info: { product: string; firmware: string; fpga: string; name?: string }): void {

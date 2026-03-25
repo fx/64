@@ -30,14 +30,12 @@ export function createEventRoutes(store: DeviceStore) {
           });
       });
 
-      // Keep stream alive until client disconnects
-      stream.onAbort(() => {
-        unsubscribe();
-      });
-
-      // Keep the stream open by waiting indefinitely
+      // Keep the stream open until client disconnects
       await new Promise<void>((resolve) => {
-        stream.onAbort(() => resolve());
+        stream.onAbort(() => {
+          unsubscribe();
+          resolve();
+        });
       });
     });
   });
