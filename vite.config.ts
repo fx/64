@@ -32,8 +32,8 @@ export default defineConfig(({ mode }) => {
       devServer({
         entry: "src/server/index.ts",
         exclude: [
-          // Only route /api/* to Hono; Vite handles everything else (SPA, assets, HMR)
-          /^(?!\/api\/).*/,
+          // Route /api and /api/* to Hono; Vite handles everything else (SPA, assets, HMR)
+          /^(?!\/api(?:\/|$)).*/,
         ],
       }),
       tailwindcss(),

@@ -13,6 +13,7 @@ Tasks are tracked in each spec file. Work in order — later specs depend on ear
 - [x] [0001 — Project Scaffolding](specs/0001-project-scaffolding.md) (PR #1)
 - [x] [0002 — Device Discovery](specs/0002-device-discovery.md) (PR #2)
 - [x] [0003 — API Proxy](specs/0003-api-proxy.md) (PR #3)
+- [x] Restructure specs (12→8), fix dev server (Bun import, SPA routing, network host) (PR #4)
 
 ### Phase 2 — Functional UI
 

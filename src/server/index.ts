@@ -36,6 +36,9 @@ if (typeof globalThis.Bun !== "undefined") {
 
   app.notFound(async (c) => {
     const path = c.req.path;
+    if (path.startsWith("/api/")) {
+      return c.json({ errors: ["Not found"], proxy_error: false }, 404);
+    }
     if (path.startsWith("/static/") || path.startsWith("/fonts/") || path === "/favicon.ico") {
       return c.notFound();
     }
