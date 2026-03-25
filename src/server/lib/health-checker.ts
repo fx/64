@@ -22,18 +22,18 @@ async function checkDevice(store: DeviceStore, deviceId: string): Promise<void> 
   lastChecked.set(deviceId, Date.now());
 
   const version = await probeVersion(device.ip, device.port, device.password);
-  if (version) {
+  if (version.ok) {
     const wasOffline = !device.online;
     store.markOnline(deviceId, new Date().toISOString());
     backoff.set(deviceId, 1);
 
     if (wasOffline) {
       const info = await fetchDeviceInfo(device.ip, device.port, device.password);
-      if (info) {
+      if (info.ok) {
         store.updateDeviceInfo(deviceId, {
-          product: info.product,
-          firmware: info.firmware_version,
-          fpga: info.fpga_version,
+          product: info.data.product,
+          firmware: info.data.firmware_version,
+          fpga: info.data.fpga_version,
         });
       }
       emitDeviceEvent({

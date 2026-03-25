@@ -46,24 +46,24 @@ export function createDeviceRoutes(store: DeviceStore) {
 
       // Probe device
       const version = await probeVersion(body.ip, port, body.password);
-      if (!version) {
-        return c.json({ error: "Device not reachable or not a C64U device" }, 502);
+      if (!version.ok) {
+        return c.json({ error: version.reason }, 502);
       }
 
       const info = await fetchDeviceInfo(body.ip, port, body.password);
-      if (!info) {
-        return c.json({ error: "Failed to fetch device info" }, 502);
+      if (!info.ok) {
+        return c.json({ error: info.reason }, 502);
       }
 
       const device = store.upsert({
-        id: info.unique_id,
-        name: body.name ?? info.hostname,
+        id: info.data.unique_id,
+        name: body.name ?? info.data.hostname,
         ip: body.ip,
         port,
         password: body.password,
-        product: info.product,
-        firmware: info.firmware_version,
-        fpga: info.fpga_version,
+        product: info.data.product,
+        firmware: info.data.firmware_version,
+        fpga: info.data.fpga_version,
         online: true,
         lastSeen: new Date().toISOString(),
       });
