@@ -8,10 +8,18 @@ function extractErrorMessage(body: unknown, fallback: string): string {
   );
 }
 
-async function throwIfNotOk(res: Response, fallback: string): Promise<void> {
+async function throwOnError(res: Response, fallback: string): Promise<void> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(extractErrorMessage(body, fallback));
+  }
+  // C64U API can return errors in a 200 response
+  if (res.headers.get("content-type")?.includes("application/json")) {
+    const body = await res.json().catch(() => null);
+    const errors = (body as { errors?: string[] })?.errors;
+    if (errors && errors.length > 0) {
+      throw new Error(errors[0]);
+    }
   }
 }
 
@@ -21,7 +29,7 @@ async function deviceAction(
   method = "PUT",
 ): Promise<void> {
   const res = await fetch(`/api/devices/${deviceId}/v1/${path}`, { method });
-  await throwIfNotOk(res, "Action failed");
+  await throwOnError(res,"Action failed");
 }
 
 export function useDeviceActions(deviceId: string) {
@@ -96,7 +104,7 @@ export function useDeviceActions(deviceId: string) {
         method: "POST",
         body: form,
       });
-      await throwIfNotOk(res, "Upload failed");
+      await throwOnError(res,"Upload failed");
     },
     onSuccess: invalidateDrives,
   });

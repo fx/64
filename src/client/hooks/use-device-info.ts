@@ -26,7 +26,11 @@ export function useDeviceInfo(deviceId: string) {
         const err = (await res.json()) as { errors?: string[] };
         throw new Error(err?.errors?.[0] || "Failed to fetch device info");
       }
-      return res.json();
+      const data = await res.json();
+      if (data.errors?.length) {
+        throw new Error(data.errors[0]);
+      }
+      return data;
     },
   });
 }
@@ -42,7 +46,11 @@ export function useDriveStatus(deviceId: string) {
         const err = (await res.json()) as { errors?: string[] };
         throw new Error(err?.errors?.[0] || "Failed to fetch drive status");
       }
-      return res.json();
+      const data = await res.json();
+      if (data.errors?.length) {
+        throw new Error(data.errors[0]);
+      }
+      return data;
     },
   });
 }

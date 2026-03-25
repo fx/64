@@ -28,7 +28,19 @@ export function createUploadMountRoutes(store: DeviceStore) {
       return c.json({ error: "mode must be readwrite, readonly, or unlinked" }, 400);
     }
 
-    const targetUrl = `http://${device.ip}:${device.port}/v1/drives/${drive}:mount?mode=${mode}`;
+    // Derive image type from file extension so the device can identify the format
+    let imageType = "";
+    if (file.name) {
+      const lastDot = file.name.lastIndexOf(".");
+      if (lastDot !== -1 && lastDot < file.name.length - 1) {
+        imageType = file.name.slice(lastDot + 1).toLowerCase();
+      }
+    }
+
+    let targetUrl = `http://${device.ip}:${device.port}/v1/drives/${drive}:mount?mode=${encodeURIComponent(mode)}`;
+    if (imageType) {
+      targetUrl += `&type=${encodeURIComponent(imageType)}`;
+    }
     const headers: Record<string, string> = {
       "content-type": file.type || "application/octet-stream",
     };
