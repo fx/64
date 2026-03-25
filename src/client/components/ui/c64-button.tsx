@@ -6,6 +6,7 @@ interface C64ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export function C64Button({
   variant = "default",
+  type = "button",
   className = "",
   children,
   ...props
@@ -16,7 +17,11 @@ export function C64Button({
       : "";
 
   return (
-    <button className={`c64-button ${variantClass} ${className}`} {...props}>
+    <button
+      type={type}
+      className={`c64-button ${variantClass} ${className}`}
+      {...props}
+    >
       {children}
     </button>
   );

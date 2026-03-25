@@ -19,7 +19,8 @@ export function C64Table<T>({
   data,
   keyFn,
   emptyMessage = "NO DATA",
-}: C64TableProps<T>) {
+  width = 40,
+}: C64TableProps<T> & { width?: number }) {
   const h = PETSCII_BOX.horizontal;
 
   return (
@@ -37,7 +38,7 @@ export function C64Table<T>({
         ))}
       </div>
       {/* Separator */}
-      <div>{h.repeat(40)}</div>
+      <div>{h.repeat(width)}</div>
       {/* Data rows */}
       {data.length === 0 ? (
         <div className="px-[1ch] py-[0.5em]">{emptyMessage}</div>

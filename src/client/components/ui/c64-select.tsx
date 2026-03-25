@@ -1,4 +1,4 @@
-import type { SelectHTMLAttributes } from "react";
+import { useId, type SelectHTMLAttributes } from "react";
 
 interface C64SelectOption {
   value: string;
@@ -15,12 +15,21 @@ export function C64Select({
   options,
   label,
   className = "",
+  id,
   ...props
 }: C64SelectProps) {
+  const generatedId = useId();
+  const selectId = id ?? generatedId;
+
   return (
     <div className="inline-block">
-      {label && <label className="block mb-[1em]">{label}</label>}
+      {label && (
+        <label className="block mb-[1em]" htmlFor={selectId}>
+          {label}
+        </label>
+      )}
       <select
+        id={selectId}
         className={`c64-control cursor-pointer appearance-none ${className}`}
         {...props}
       >

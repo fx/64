@@ -1,6 +1,7 @@
 import {
   type DragEvent,
   type ChangeEvent,
+  type KeyboardEvent,
   useRef,
   useState,
   useCallback,
@@ -59,16 +60,34 @@ export function C64FileDropZone({
     [onFile, validateFile],
   );
 
+  const openPicker = () => {
+    if (!disabled) inputRef.current?.click();
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openPicker();
+    }
+  };
+
   return (
     <div
-      className={`c64-box-border cursor-pointer ${dragOver ? "bg-c64-14-light-blue text-c64-6-blue" : ""}`}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      className={`c64-box-border ${disabled ? "cursor-not-allowed" : "cursor-pointer"} ${!disabled && dragOver ? "bg-c64-14-light-blue text-c64-6-blue" : ""}`}
       onDragOver={(e) => {
+        if (disabled) return;
         e.preventDefault();
         setDragOver(true);
       }}
-      onDragLeave={() => setDragOver(false)}
+      onDragLeave={() => {
+        if (disabled) return;
+        setDragOver(false);
+      }}
       onDrop={handleDrop}
-      onClick={() => inputRef.current?.click()}
+      onClick={openPicker}
+      onKeyDown={handleKeyDown}
     >
       <div>
         {PETSCII_BOX.topLeft}

@@ -6,6 +6,10 @@ export function useDevices() {
     queryKey: ["devices"],
     queryFn: async () => {
       const res = await api.devices.$get();
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: string };
+        throw new Error(err?.error || "Failed to fetch devices");
+      }
       return res.json();
     },
   });
