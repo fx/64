@@ -10,3 +10,5 @@
 - **Dev server network exposure**: `host: "0.0.0.0"` and `allowedHosts: true` in `vite.config.ts` are intentional. This runs in a Coder remote workspace where network access is required. Do not flag this as a security concern.
 - **caret-color: transparent**: Intentional for C64 aesthetic. The native browser caret breaks the retro look. Custom cursor indicators (blinking block/underscore) are used instead. Do not suggest removing this property.
 - **React 19 Context pattern**: This project uses React 19 where `<Context value={...}>` is the correct provider syntax. `<Context.Provider>` is the legacy React 18 pattern. Do not suggest switching to `.Provider`.
+- **Test coverage required**: PRs without tests for server logic changes get REQUEST CHANGES. All server modules must have corresponding test files in `tests/`.
+- **Bug fix protocol**: Bug fix PRs must include a regression test that fails without the fix and passes with it. REQUEST CHANGES if missing.
