@@ -11,7 +11,7 @@ const lastChecked = new Map<string, number>();
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 
-async function checkDevice(store: DeviceStore, deviceId: string): Promise<void> {
+export async function checkDevice(store: DeviceStore, deviceId: string): Promise<void> {
   const device = store.get(deviceId);
   if (!device) {
     backoff.delete(deviceId);
@@ -57,7 +57,7 @@ async function checkDevice(store: DeviceStore, deviceId: string): Promise<void> 
   }
 }
 
-async function runHealthCheck(store: DeviceStore): Promise<void> {
+export async function runHealthCheck(store: DeviceStore): Promise<void> {
   const devices = store.list();
   const now = Date.now();
 
@@ -96,4 +96,10 @@ export function stopHealthChecker(): void {
     clearTimeout(timer);
     timer = null;
   }
+}
+
+/** Reset internal state — only for testing */
+export function resetHealthState(): void {
+  backoff.clear();
+  lastChecked.clear();
 }
