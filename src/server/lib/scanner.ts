@@ -34,23 +34,23 @@ export async function scanSubnet(
     while (index < ips.length) {
       const ip = ips[index++]!;
       const version = await probeVersion(ip, port, undefined, timeoutMs);
-      if (!version) continue;
+      if (!version.ok) continue;
 
       const info = await fetchDeviceInfo(ip, port, undefined, timeoutMs);
-      if (!info) continue;
+      if (!info.ok) continue;
 
-      const isNew = !store.has(info.unique_id);
-      const existing = store.get(info.unique_id);
+      const isNew = !store.has(info.data.unique_id);
+      const existing = store.get(info.data.unique_id);
 
       const device: Device = {
-        id: info.unique_id,
-        name: existing?.name ?? info.hostname,
+        id: info.data.unique_id,
+        name: existing?.name ?? info.data.hostname,
         ip,
         port,
         password: existing?.password,
-        product: info.product,
-        firmware: info.firmware_version,
-        fpga: info.fpga_version,
+        product: info.data.product,
+        firmware: info.data.firmware_version,
+        fpga: info.data.fpga_version,
         online: true,
         lastSeen: new Date().toISOString(),
       };

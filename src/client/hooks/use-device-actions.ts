@@ -9,17 +9,18 @@ function extractErrorMessage(body: unknown, fallback: string): string {
 }
 
 async function throwOnError(res: Response, fallback: string): Promise<void> {
+  if (!res.headers.get("content-type")?.includes("application/json")) {
+    if (!res.ok) throw new Error(fallback);
+    return;
+  }
+  const body = await res.clone().json().catch(() => null);
   if (!res.ok) {
-    const body = await res.json().catch(() => null);
     throw new Error(extractErrorMessage(body, fallback));
   }
   // C64U API can return errors in a 200 response
-  if (res.headers.get("content-type")?.includes("application/json")) {
-    const body = await res.json().catch(() => null);
-    const errors = (body as { errors?: string[] })?.errors;
-    if (errors && errors.length > 0) {
-      throw new Error(errors[0]);
-    }
+  const errors = (body as { errors?: string[] })?.errors;
+  if (errors && errors.length > 0) {
+    throw new Error(errors[0]);
   }
 }
 

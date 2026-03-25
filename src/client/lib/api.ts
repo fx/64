@@ -1,7 +1,7 @@
 import { hc } from "hono/client";
 import type { AppType } from "../../server/index.ts";
 
-export const api = hc<AppType>("/api").api;
+export const api = hc<AppType>("/").api;
 
 // Hono RPC type inference examples for proxy routes:
 //

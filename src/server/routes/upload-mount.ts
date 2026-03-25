@@ -52,10 +52,11 @@ export function createUploadMountRoutes(store: DeviceStore) {
     const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
     try {
+      const fileBuffer = await file.arrayBuffer();
       const res = await fetch(targetUrl, {
         method: "POST",
         headers,
-        body: file.stream(),
+        body: fileBuffer,
         signal: controller.signal,
       });
 
@@ -66,9 +67,13 @@ export function createUploadMountRoutes(store: DeviceStore) {
       return c.json({ errors: [] }, res.status as 200);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        return c.json({ error: "Device did not respond" }, 504);
+        return c.json({ error: `Device at ${device.ip} did not respond (timeout)` }, 504);
       }
-      return c.json({ error: `Cannot reach device at ${device.ip}` }, 502);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("ECONNREFUSED")) {
+        return c.json({ error: `Connection refused by ${device.ip}:${device.port} — is the device powered on?` }, 502);
+      }
+      return c.json({ error: `Cannot reach device at ${device.ip} — ${msg}` }, 502);
     } finally {
       clearTimeout(timer);
     }
