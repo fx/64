@@ -1,0 +1,107 @@
+import {
+  type DragEvent,
+  type ChangeEvent,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
+import { PETSCII_BOX } from "../../lib/petscii.ts";
+
+const DEFAULT_EXTENSIONS = [".d64", ".d71", ".d81", ".g64", ".g71"];
+
+interface C64FileDropZoneProps {
+  onFile: (file: File) => void;
+  accept?: string[];
+  disabled?: boolean;
+}
+
+export function C64FileDropZone({
+  onFile,
+  accept = DEFAULT_EXTENSIONS,
+  disabled,
+}: C64FileDropZoneProps) {
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const h = PETSCII_BOX.horizontal;
+  const v = PETSCII_BOX.vertical;
+
+  const validateFile = useCallback(
+    (file: File): boolean => {
+      const ext = "." + file.name.split(".").pop()?.toLowerCase();
+      return accept.includes(ext);
+    },
+    [accept],
+  );
+
+  const handleDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      if (disabled) return;
+      const file = e.dataTransfer.files[0];
+      if (file && validateFile(file)) onFile(file);
+    },
+    [disabled, onFile, validateFile],
+  );
+
+  const handleChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && validateFile(file)) onFile(file);
+    },
+    [onFile, validateFile],
+  );
+
+  const pad = (text: string, width: number) =>
+    text + " ".repeat(Math.max(0, width - text.length));
+
+  const innerWidth = 30;
+
+  return (
+    <div
+      className={`c64-box-border cursor-pointer ${dragOver ? "bg-c64-14-light-blue text-c64-6-blue" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+      onClick={() => inputRef.current?.click()}
+    >
+      <div>
+        {PETSCII_BOX.topLeft}
+        {h.repeat(innerWidth)}
+        {PETSCII_BOX.topRight}
+      </div>
+      <div>
+        {v}
+        {pad(" DROP DISK IMAGE HERE", innerWidth)}
+        {v}
+      </div>
+      <div>
+        {v}
+        {pad(" OR CLICK TO BROWSE", innerWidth)}
+        {v}
+      </div>
+      <div>
+        {v}
+        {pad(" " + accept.join(" "), innerWidth)}
+        {v}
+      </div>
+      <div>
+        {PETSCII_BOX.bottomLeft}
+        {h.repeat(innerWidth)}
+        {PETSCII_BOX.bottomRight}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        accept={accept.join(",")}
+        onChange={handleChange}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
