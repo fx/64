@@ -1,7 +1,8 @@
 import type { DeviceStore } from "./device-store.ts";
+import type { C64FetchResult } from "./c64-client.ts";
 import { fetchDeviceInfo, fetchDrives } from "./c64-client.ts";
 import { onDeviceEvent } from "./device-events.ts";
-import type { DeviceStateEvent } from "@shared/types.ts";
+import type { DeviceStateEvent, DeviceStateEventType } from "@shared/types.ts";
 
 export interface DeviceStateCache {
   drives?: unknown;
@@ -10,6 +11,7 @@ export interface DeviceStateCache {
 }
 
 type StateListener = (event: DeviceStateEvent) => void;
+type CacheField = "drives" | "info";
 
 const DRIVES_INTERVAL_MS = 5_000;
 const INFO_INTERVAL_MS = 30_000;
@@ -52,11 +54,8 @@ export class DevicePoller {
       this.unsubscribeDeviceEvents();
       this.unsubscribeDeviceEvents = null;
     }
-    for (const deviceId of this.driveTimers.keys()) {
-      this.stopPolling(deviceId);
-    }
-    // Also stop any that only have info timers
-    for (const deviceId of this.infoTimers.keys()) {
+    const allDeviceIds = new Set([...this.driveTimers.keys(), ...this.infoTimers.keys()]);
+    for (const deviceId of allDeviceIds) {
       this.stopPolling(deviceId);
     }
     this.cache.clear();
@@ -125,8 +124,8 @@ export class DevicePoller {
 
   private scheduleDrivePoll(deviceId: string, delayMs: number): void {
     const timer = setTimeout(async () => {
-      await this.pollDrives(deviceId);
-      // Continue polling if still active
+      await this.pollState(deviceId, "drives", "state:drives", (d) =>
+        fetchDrives(d.ip, d.port, d.password));
       if (this.driveTimers.has(deviceId)) {
         const multiplier = this.backoff.get(deviceId) ?? 1;
         this.scheduleDrivePoll(deviceId, DRIVES_INTERVAL_MS * multiplier);
@@ -137,8 +136,8 @@ export class DevicePoller {
 
   private scheduleInfoPoll(deviceId: string, delayMs: number): void {
     const timer = setTimeout(async () => {
-      await this.pollInfo(deviceId);
-      // Continue polling if still active
+      await this.pollState(deviceId, "info", "state:info", (d) =>
+        fetchDeviceInfo(d.ip, d.port, d.password));
       if (this.infoTimers.has(deviceId)) {
         const multiplier = this.backoff.get(deviceId) ?? 1;
         this.scheduleInfoPoll(deviceId, INFO_INTERVAL_MS * multiplier);
@@ -147,56 +146,32 @@ export class DevicePoller {
     this.infoTimers.set(deviceId, timer);
   }
 
-  private async pollDrives(deviceId: string): Promise<void> {
+  private async pollState(
+    deviceId: string,
+    field: CacheField,
+    eventType: DeviceStateEventType,
+    fetcher: (device: { ip: string; port: number; password?: string }) => Promise<C64FetchResult<unknown>>,
+  ): Promise<void> {
     const device = this.store.get(deviceId);
     if (!device) {
       this.stopPolling(deviceId);
       return;
     }
 
-    const result = await fetchDrives(device.ip, device.port, device.password);
+    const result = await fetcher(device);
     if (result.ok) {
       this.backoff.set(deviceId, 1);
       const cached = this.cache.get(deviceId);
-      const newData = result.data;
-      const oldJson = cached?.drives !== undefined ? JSON.stringify(cached.drives) : undefined;
-      const newJson = JSON.stringify(newData);
+      const newJson = JSON.stringify(result.data);
+      const oldJson = cached?.[field] !== undefined ? JSON.stringify(cached[field]) : undefined;
 
       if (oldJson !== newJson) {
         if (!cached) {
-          this.cache.set(deviceId, { drives: newData, online: true });
+          this.cache.set(deviceId, { [field]: result.data, online: true });
         } else {
-          cached.drives = newData;
+          cached[field] = result.data;
         }
-        this.emit({ type: "state:drives", deviceId, data: newData });
-      }
-    } else {
-      this.increaseBackoff(deviceId);
-    }
-  }
-
-  private async pollInfo(deviceId: string): Promise<void> {
-    const device = this.store.get(deviceId);
-    if (!device) {
-      this.stopPolling(deviceId);
-      return;
-    }
-
-    const result = await fetchDeviceInfo(device.ip, device.port, device.password);
-    if (result.ok) {
-      this.backoff.set(deviceId, 1);
-      const cached = this.cache.get(deviceId);
-      const newData = result.data;
-      const oldJson = cached?.info !== undefined ? JSON.stringify(cached.info) : undefined;
-      const newJson = JSON.stringify(newData);
-
-      if (oldJson !== newJson) {
-        if (!cached) {
-          this.cache.set(deviceId, { info: newData, online: true });
-        } else {
-          cached.info = newData;
-        }
-        this.emit({ type: "state:info", deviceId, data: newData });
+        this.emit({ type: eventType, deviceId, data: result.data });
       }
     } else {
       this.increaseBackoff(deviceId);
