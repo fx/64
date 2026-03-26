@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { Device, Macro, MacroExecution, MacroStep } from "@shared/types.ts";
 import { emitMacroEvent } from "./macro-events.ts";
 
@@ -191,7 +191,15 @@ export class MacroEngine {
     device: Device,
   ): Promise<void> {
     const gamesDir = join(process.cwd(), "data", "games");
-    const filePath = join(gamesDir, step.localFile);
+
+    // Sanitize localFile to prevent path traversal
+    const safeName = basename(step.localFile);
+    if (safeName !== step.localFile || step.localFile.includes("..")) {
+      throw new Error(
+        `Step '${step.action}' failed: invalid file name: ${step.localFile}`,
+      );
+    }
+    const filePath = join(gamesDir, safeName);
 
     let fileData: Buffer;
     try {
@@ -206,7 +214,8 @@ export class MacroEngine {
     const lastDot = step.localFile.lastIndexOf(".");
     const imageType = lastDot !== -1 ? step.localFile.slice(lastDot + 1).toLowerCase() : "";
 
-    const mode = step.mode || "readwrite";
+    const VALID_MODES = new Set(["readwrite", "readonly", "unlinked"]);
+    const mode = step.mode && VALID_MODES.has(step.mode) ? step.mode : "readwrite";
     let mountUrl = `http://${device.ip}:${device.port}/v1/drives/${step.drive}:mount?mode=${encodeURIComponent(mode)}`;
     if (imageType) {
       mountUrl += `&type=${encodeURIComponent(imageType)}`;
@@ -233,6 +242,16 @@ export class MacroEngine {
           `Step '${step.action}' failed: HTTP ${res.status}${text ? ` - ${text}` : ""}`,
         );
       }
+      // Check C64U application-level errors (HTTP 200 but errors array)
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        const body = await res.json().catch(() => null) as { errors?: string[] } | null;
+        if (body?.errors?.length) {
+          throw new Error(
+            `Step '${step.action}' failed: ${body.errors.join("; ")}`,
+          );
+        }
+      }
     } finally {
       clearTimeout(timer);
     }
@@ -257,6 +276,16 @@ export class MacroEngine {
           throw new Error(
             `Step '${step.action}' run failed: HTTP ${runRes.status}${text ? ` - ${text}` : ""}`,
           );
+        }
+        // Check C64U application-level errors (HTTP 200 but errors array)
+        const runCt = runRes.headers.get("content-type") || "";
+        if (runCt.includes("application/json")) {
+          const runBody = await runRes.json().catch(() => null) as { errors?: string[] } | null;
+          if (runBody?.errors?.length) {
+            throw new Error(
+              `Step '${step.action}' run failed: ${runBody.errors.join("; ")}`,
+            );
+          }
         }
       } finally {
         clearTimeout(runTimer);

@@ -25,7 +25,6 @@ describe("GET /api/games", () => {
     process.cwd = () => tempDir;
 
     // Re-import the module fresh so it picks up the new cwd
-    // Clear any cached module
     const mod = await import("../src/server/routes/games.ts");
     const games = mod.default;
     app = new Hono().basePath("/api").route("/", games);

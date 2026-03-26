@@ -28,19 +28,21 @@ const games = new Hono().get("/games", (c) => {
   const files = entries
     .filter((name) => VALID_EXTENSIONS.has(getExtension(name)))
     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-    .map((name) => {
+    .reduce<{ name: string; size: number; modified: string }[]>((acc, name) => {
       const fullPath = join(gamesDir, name);
       try {
         const stat = statSync(fullPath);
-        return {
+        if (!stat.isFile()) return acc;
+        acc.push({
           name,
           size: stat.size,
           modified: stat.mtime.toISOString(),
-        };
+        });
       } catch {
-        return { name, size: 0, modified: new Date().toISOString() };
+        // Skip files where stat fails (broken symlinks, permission errors, etc.)
       }
-    });
+      return acc;
+    }, []);
 
   return c.json({ files });
 });
