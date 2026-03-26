@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../lib/api.ts";
-import { getErrorMessage } from "../lib/api-error.ts";
+import { api, getErrorMessage } from "../lib/api.ts";
 
 export function useCollections() {
   return useQuery({
