@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, type DragEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { C64Box } from "../../components/ui/c64-box.tsx";
 import { C64Button } from "../../components/ui/c64-button.tsx";
@@ -119,7 +119,7 @@ function PlaylistManagerPage() {
     setDragIdx(index);
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handleDragOver = (e: DragEvent, index: number) => {
     e.preventDefault();
     if (dragIdx === null || dragIdx === index) return;
     setEditTracks((prev) => {
