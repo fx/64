@@ -138,7 +138,8 @@ export function C64FileBrowser({
 
   const navigateTo = useCallback(
     (path: string) => {
-      const normalized = path.endsWith("/") ? path : path + "/";
+      let normalized = path.startsWith("/") ? path : "/" + path;
+      if (!normalized.endsWith("/")) normalized += "/";
       setCurrentPath(normalized);
       setPathInput(normalized);
       setSelectedFile(null);
@@ -235,6 +236,7 @@ export function C64FileBrowser({
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) handleUpload(file);
+      e.target.value = "";
     },
     [handleUpload],
   );
@@ -354,7 +356,10 @@ export function C64FileBrowser({
                 className="flex items-center cursor-pointer hover:bg-c64-14-light-blue hover:text-c64-6-blue"
                 onClick={() => navigateTo(listing.data!.parent!)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") navigateTo(listing.data!.parent!);
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigateTo(listing.data!.parent!);
+                  }
                 }}
                 role="button"
                 tabIndex={0}
@@ -403,7 +408,10 @@ export function C64FileBrowser({
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleEntryClick(entry);
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleEntryClick(entry);
+                      }
                     }}
                     role="button"
                     tabIndex={0}

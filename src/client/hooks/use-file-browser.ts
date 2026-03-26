@@ -20,7 +20,11 @@ export type { DirectoryEntry, DirectoryListing };
 async function throwOnNotOk(res: Response, fallback: string): Promise<void> {
   if (res.ok) return;
   const body = await res.json().catch(() => null);
-  throw new Error((body as { error?: string })?.error || fallback);
+  const msg =
+    (body as { error?: string })?.error ||
+    (body as { errors?: string[] })?.errors?.[0] ||
+    fallback;
+  throw new Error(msg);
 }
 
 export function useFileListing(deviceId: string, path: string) {
