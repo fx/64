@@ -1,6 +1,7 @@
 import type { Device, Macro, MacroExecution, MacroStep } from "@shared/types.ts";
 
 const STEP_TIMEOUT_MS = 10000;
+const MAX_RETAINED_EXECUTIONS = 100;
 
 export class MacroEngine {
   private executions: Map<string, MacroExecution> = new Map();
@@ -34,6 +35,9 @@ export class MacroEngine {
     };
     this.executions.set(execId, execution);
     this.abortFlags.set(execId, false);
+
+    // Evict oldest completed executions to bound memory
+    this.evictOldExecutions();
 
     // Run steps asynchronously — caller gets execution ID immediately
     this.runSteps(execId, macro, device).catch(() => {});
@@ -175,6 +179,20 @@ export class MacroEngine {
         throw new Error(
           `Unknown action: ${(step as { action: string }).action}`,
         );
+    }
+  }
+
+  private evictOldExecutions(): void {
+    if (this.executions.size <= MAX_RETAINED_EXECUTIONS) return;
+    const completed = Array.from(this.executions.values())
+      .filter((e) => e.status !== "running")
+      .sort((a, b) => (a.startedAt < b.startedAt ? -1 : 1));
+    while (
+      this.executions.size > MAX_RETAINED_EXECUTIONS &&
+      completed.length > 0
+    ) {
+      const oldest = completed.shift()!;
+      this.executions.delete(oldest.id);
     }
   }
 }
