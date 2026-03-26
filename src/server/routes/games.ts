@@ -2,8 +2,11 @@ import { Hono } from "hono";
 import { readdirSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const GAMES_DIR = join(process.cwd(), "data", "games");
 const VALID_EXTENSIONS = new Set([".d64", ".d71", ".d81", ".g64", ".g71"]);
+
+function getGamesDir(): string {
+  return join(process.cwd(), "data", "games");
+}
 
 function getExtension(name: string): string {
   const lastDot = name.lastIndexOf(".");
@@ -12,11 +15,12 @@ function getExtension(name: string): string {
 }
 
 const games = new Hono().get("/games", (c) => {
-  mkdirSync(GAMES_DIR, { recursive: true });
+  const gamesDir = getGamesDir();
+  mkdirSync(gamesDir, { recursive: true });
 
   let entries: string[];
   try {
-    entries = readdirSync(GAMES_DIR);
+    entries = readdirSync(gamesDir);
   } catch {
     return c.json({ files: [] });
   }
@@ -25,7 +29,7 @@ const games = new Hono().get("/games", (c) => {
     .filter((name) => VALID_EXTENSIONS.has(getExtension(name)))
     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
     .map((name) => {
-      const fullPath = join(GAMES_DIR, name);
+      const fullPath = join(gamesDir, name);
       try {
         const stat = statSync(fullPath);
         return {
