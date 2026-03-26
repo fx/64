@@ -287,18 +287,18 @@ src/client/
   - [ ] File browser integration for selecting disk images
   - [ ] Drive assignment (A/B) per disk entry
   - [ ] Flip widget component: compact panel on device dashboard with current disk, next/prev/slot buttons
-- [ ] Implement macro CRUD API with JSON persistence
-  - [ ] Create `Macro`, `MacroStep`, `MacroExecution` TypeScript types
-  - [ ] Implement `MacroStore`: load/save `data/macros.json`
-  - [ ] CRUD endpoints: `GET/POST /api/macros`, `GET/PUT/DELETE /api/macros/:id`
-  - [ ] Seed built-in templates on first run (Quick Start Game, Disk Swap, Memory Peek)
-- [ ] Implement macro execution engine
-  - [ ] `POST /api/macros/:id/execute` — accept `{ deviceId }`, validate, execute sequentially
-  - [ ] Map each `MacroStep.action` to corresponding C64U API call via proxy
-  - [ ] Handle `delay` steps, track execution state (running/completed/failed)
-  - [ ] On failure: stop, record error and failing step
-  - [ ] `POST /api/macros/executions/:execId/cancel` — abort after current step
-  - [ ] `GET /api/macros/executions` and `GET /api/macros/executions/:execId` — status queries
+- [x] Implement macro CRUD API with JSON persistence
+  - [x] Create `Macro`, `MacroStep`, `MacroExecution` TypeScript types
+  - [x] Implement `MacroStore`: load/save `data/macros.json`
+  - [x] CRUD endpoints: `GET/POST /api/macros`, `GET/PUT/DELETE /api/macros/:id`
+  - [x] Seed built-in templates on first run (Quick Start Game, Disk Swap, Memory Peek)
+- [x] Implement macro execution engine
+  - [x] `POST /api/macros/:id/execute` — accept `{ deviceId }`, validate, execute sequentially
+  - [x] Map each `MacroStep.action` to corresponding C64U API call via proxy
+  - [x] Handle `delay` steps, track execution state (running/completed/failed)
+  - [x] On failure: stop, record error and failing step
+  - [x] `POST /api/macros/executions/:execId/cancel` — abort after current step
+  - [x] `GET /api/macros/executions` and `GET /api/macros/executions/:execId` — status queries
 - [ ] Implement macro SSE events and build macro UI
   - [ ] Emit `macro:step`, `macro:complete`, `macro:failed` SSE events during execution
   - [ ] Macro manager page at `/macros`: list, create/edit/delete, step editor

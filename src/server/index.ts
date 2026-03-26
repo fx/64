@@ -6,14 +6,19 @@ import { createProxyRoutes } from "./routes/proxy.ts";
 import { createUploadMountRoutes } from "./routes/upload-mount.ts";
 import { createFileRoutes } from "./routes/files.ts";
 import { createCollectionRoutes } from "./routes/collections.ts";
+import { createMacroRoutes } from "./routes/macros.ts";
 import { DeviceStore } from "./lib/device-store.ts";
 import { CollectionStore } from "./lib/collection-store.ts";
+import { MacroStore } from "./lib/macro-store.ts";
+import { MacroEngine } from "./lib/macro-engine.ts";
 import { DevicePoller } from "./lib/device-poller.ts";
 import { startHealthChecker } from "./lib/health-checker.ts";
 import { cors } from "./middleware/cors.ts";
 
 const store = new DeviceStore();
 const collectionStore = new CollectionStore();
+const macroStore = new MacroStore();
+const macroEngine = new MacroEngine();
 const poller = new DevicePoller(store);
 
 const deviceRoutes = createDeviceRoutes(store);
@@ -21,6 +26,7 @@ const eventRoutes = createEventRoutes(store, poller);
 const uploadMountRoutes = createUploadMountRoutes(store);
 const fileRoutes = createFileRoutes(store);
 const collectionRoutes = createCollectionRoutes(collectionStore, store);
+const macroRoutes = createMacroRoutes(macroStore, macroEngine, store);
 const proxyRoutes = createProxyRoutes(store);
 
 const app = new Hono();
@@ -35,6 +41,7 @@ const apiRoutes = app
   .route("/", uploadMountRoutes)
   .route("/", fileRoutes)
   .route("/", collectionRoutes)
+  .route("/", macroRoutes)
   .route("/", proxyRoutes);
 
 export type AppType = typeof apiRoutes;

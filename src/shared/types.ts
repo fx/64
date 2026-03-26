@@ -90,3 +90,49 @@ export interface FlipResult {
   position: number; // current slot index
   total: number; // total disks in collection
 }
+
+// ── Macros ────────────────────────────────────────────
+
+export type MacroStep =
+  | { action: "reset" }
+  | { action: "reboot" }
+  | { action: "pause" }
+  | { action: "resume" }
+  | { action: "mount"; drive: "a" | "b"; image: string; mode?: string }
+  | { action: "remove"; drive: "a" | "b" }
+  | { action: "run_prg"; file: string }
+  | { action: "load_prg"; file: string }
+  | { action: "run_crt"; file: string }
+  | { action: "sidplay"; file: string; songnr?: number }
+  | { action: "modplay"; file: string }
+  | { action: "writemem"; address: string; data: string }
+  | { action: "set_config"; category: string; item: string; value: string }
+  | { action: "delay"; ms: number };
+
+export interface Macro {
+  id: string;
+  name: string;
+  description?: string;
+  steps: MacroStep[];
+  builtIn?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MacroExecutionStatus =
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export interface MacroExecution {
+  id: string;
+  macroId: string;
+  deviceId: string;
+  status: MacroExecutionStatus;
+  currentStep: number;
+  totalSteps: number;
+  error?: string;
+  startedAt: string;
+  completedAt?: string;
+}
