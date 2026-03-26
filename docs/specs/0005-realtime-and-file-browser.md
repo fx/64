@@ -243,12 +243,12 @@ src/client/
   - [x] `GET /api/devices/:deviceId/files/download?path=<file>` — download as binary stream
   - [x] `DELETE /api/devices/:deviceId/files?path=<file>` — delete via FTP
   - [x] Invalidate directory cache on upload and delete
-- [ ] Build file browser UI component
-  - [ ] `C64FileBrowser` component with breadcrumb navigation (clickable path segments)
-  - [ ] List view: icon (by file type), name, size, date
-  - [ ] Click directory to navigate, click file to select
-  - [ ] Path input for direct navigation
-  - [ ] Context menu per file: type-aware actions (Mount, Run, Play, Download, Delete)
-  - [ ] Drag-and-drop upload zone
-  - [ ] Loading/error states with PETSCII spinner
-  - [ ] Integration: "BROWSE" button on device dashboard opens file browser, selecting a disk populates the mount panel
+- [x] Build file browser UI component
+  - [x] `C64FileBrowser` component with breadcrumb navigation (clickable path segments)
+  - [x] List view: icon (by file type), name, size, date
+  - [x] Click directory to navigate, click file to select
+  - [x] Path input for direct navigation
+  - [x] Context menu per file: type-aware actions (Mount, Run, Play, Download, Delete)
+  - [x] Drag-and-drop upload zone
+  - [x] Loading/error states with PETSCII spinner
+  - [x] Integration: "BROWSE" button on device dashboard opens file browser, selecting a disk populates the mount panel

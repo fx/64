@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { C64Box } from "../../components/ui/c64-box.tsx";
+import { C64Button } from "../../components/ui/c64-button.tsx";
 import { C64StatusBadge } from "../../components/ui/c64-status-badge.tsx";
 import {
   useDevice,
@@ -12,6 +14,7 @@ import { useToast } from "../../components/ui/toast-context.tsx";
 import { DriveStatusPanel } from "../../components/device/drive-status-panel.tsx";
 import { MachineControls } from "../../components/device/machine-controls.tsx";
 import { UploadMountPanel } from "../../components/device/upload-mount-panel.tsx";
+import { C64FileBrowser } from "../../components/device/file-browser.tsx";
 
 export const Route = createFileRoute("/devices/$deviceId")({
   component: DeviceDashboardPage,
@@ -25,6 +28,8 @@ function DeviceDashboardPage() {
   const actions = useDeviceActions(deviceId);
   useDeviceSSE(deviceId);
   const { addToast } = useToast();
+  const [showFileBrowser, setShowFileBrowser] = useState(false);
+  const [diskMountPath, setDiskMountPath] = useState<string | undefined>();
 
   const isLoading = device.isLoading || info.isLoading || drives.isLoading;
 
@@ -110,7 +115,28 @@ function DeviceDashboardPage() {
           </div>
 
           <div className="mt-[1em]">
-            <UploadMountPanel deviceId={deviceId} />
+            {!showFileBrowser && (
+              <C64Button onClick={() => setShowFileBrowser(true)}>
+                BROWSE FILES
+              </C64Button>
+            )}
+          </div>
+
+          {showFileBrowser && (
+            <div className="mt-[1em]">
+              <C64FileBrowser
+                deviceId={deviceId}
+                onSelectDisk={(path) => {
+                  setDiskMountPath(path);
+                  addToast(`SELECTED ${path.split("/").pop()} FOR MOUNT`, "info");
+                }}
+                onClose={() => setShowFileBrowser(false)}
+              />
+            </div>
+          )}
+
+          <div className="mt-[1em]">
+            <UploadMountPanel deviceId={deviceId} externalMountPath={diskMountPath} />
           </div>
         </>
       )}
