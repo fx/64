@@ -39,7 +39,7 @@ export function createEventRoutes(store: DeviceStore, poller?: DevicePoller) {
         stream
           .writeSSE({
             event: event.type,
-            data: JSON.stringify({ deviceId: event.deviceId, ...event.data as object }),
+            data: JSON.stringify({ deviceId: event.deviceId, data: event.data }),
             id: String(id++),
           })
           .catch(() => {
@@ -110,6 +110,7 @@ export function createEventRoutes(store: DeviceStore, poller?: DevicePoller) {
       // Also listen for device online/offline registry events
       const unsubDevice = onDeviceEvent((event) => {
         if (event.data.id !== deviceId) return;
+        if (event.type !== "device:online" && event.type !== "device:offline") return;
 
         const sseEvent = event.type === "device:online" ? "online" : "offline";
         stream

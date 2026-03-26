@@ -46,8 +46,11 @@ export function useDeviceSSE(deviceId: string): void {
       es.onerror = () => {
         es?.close();
         es = null;
-        if (!closed) {
-          reconnectTimer.current = setTimeout(connect, reconnectDelay.current);
+        if (!closed && !reconnectTimer.current) {
+          reconnectTimer.current = setTimeout(() => {
+            reconnectTimer.current = undefined;
+            connect();
+          }, reconnectDelay.current);
           reconnectDelay.current = Math.min(reconnectDelay.current * 2, MAX_RECONNECT_MS);
         }
       };

@@ -32,6 +32,7 @@ export class DevicePoller {
 
   /** Start listening for device online/offline events and begin polling online devices */
   start(): void {
+    if (this.unsubscribeDeviceEvents) return;
     this.unsubscribeDeviceEvents = onDeviceEvent((event) => {
       if (event.type === "device:online") {
         this.startPolling(event.data.id);
@@ -155,6 +156,8 @@ export class DevicePoller {
     const device = this.store.get(deviceId);
     if (!device) {
       this.stopPolling(deviceId);
+      this.cache.delete(deviceId);
+      this.backoff.delete(deviceId);
       return;
     }
 
@@ -180,7 +183,9 @@ export class DevicePoller {
 
   private increaseBackoff(deviceId: string): void {
     const current = this.backoff.get(deviceId) ?? 1;
-    const next = Math.min(current * 2, MAX_BACKOFF_MS / DRIVES_INTERVAL_MS);
+    // Cap so neither drives nor info interval exceeds MAX_BACKOFF_MS
+    const maxMultiplier = MAX_BACKOFF_MS / Math.max(DRIVES_INTERVAL_MS, INFO_INTERVAL_MS);
+    const next = Math.min(current * 2, maxMultiplier);
     this.backoff.set(deviceId, next);
   }
 }
