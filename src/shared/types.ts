@@ -65,3 +65,28 @@ export interface DeviceStateEvent {
   deviceId: string;
   data: unknown;
 }
+
+// ── Disk Flip Collections ──────────────────────────────
+
+export interface DiskEntry {
+  slot: number; // position in collection (0-based)
+  label: string; // "Disk 1 - Side A"
+  path: string; // "/USB0/Games/ManiacMansion/disk1.d64"
+  drive: "a" | "b"; // target drive
+  type?: string; // inferred from extension
+}
+
+export interface DiskFlipCollection {
+  id: string;
+  name: string; // "Maniac Mansion", "Ultima IV"
+  description?: string;
+  disks: DiskEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FlipResult {
+  disk: DiskEntry;
+  position: number; // current slot index
+  total: number; // total disks in collection
+}
