@@ -2,6 +2,7 @@ import {
   type DragEvent,
   type ChangeEvent,
   useState,
+  useMemo,
   useRef,
   useCallback,
 } from "react";
@@ -100,9 +101,14 @@ function formatDate(iso?: string): string {
   return `${y}-${m}-${day}`;
 }
 
+const DISK_TYPE_KEYS = new Set(
+  Object.entries(TYPE_KEY_TO_CATEGORY)
+    .filter(([, cat]) => cat.startsWith("disk-"))
+    .map(([key]) => key),
+);
+
 function isDiskType(fileType?: string): boolean {
-  if (!fileType) return false;
-  return ["d64", "g64", "d71", "g71", "d81"].includes(fileType);
+  return !!fileType && DISK_TYPE_KEYS.has(fileType);
 }
 
 interface C64FileBrowserProps {
@@ -233,11 +239,13 @@ export function C64FileBrowser({
     [handleUpload],
   );
 
-  const entries = listing.data?.entries ?? [];
-  const sortedEntries = [...entries].sort((a, b) => {
-    if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
+  const sortedEntries = useMemo(() => {
+    const entries = listing.data?.entries ?? [];
+    return [...entries].sort((a, b) => {
+      if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [listing.data?.entries]);
 
   return (
     <C64Box title="FILE BROWSER">

@@ -17,6 +17,12 @@ interface DirectoryListing {
 
 export type { DirectoryEntry, DirectoryListing };
 
+async function throwOnNotOk(res: Response, fallback: string): Promise<void> {
+  if (res.ok) return;
+  const body = await res.json().catch(() => null);
+  throw new Error((body as { error?: string })?.error || fallback);
+}
+
 export function useFileListing(deviceId: string, path: string) {
   return useQuery({
     queryKey: ["devices", deviceId, "files", path],
@@ -24,12 +30,7 @@ export function useFileListing(deviceId: string, path: string) {
       const res = await fetch(
         `/api/devices/${deviceId}/files?path=${encodeURIComponent(path)}`,
       );
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(
-          (body as { error?: string })?.error || "Failed to list directory",
-        );
-      }
+      await throwOnNotOk(res, "Failed to list directory");
       return res.json();
     },
   });
@@ -52,12 +53,7 @@ export function useFileUpload(deviceId: string) {
         `/api/devices/${deviceId}/files/upload?path=${encodeURIComponent(targetDir)}`,
         { method: "POST", body: form },
       );
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(
-          (body as { error?: string })?.error || "Upload failed",
-        );
-      }
+      await throwOnNotOk(res, "Upload failed");
       return res.json() as Promise<{ uploaded: string[]; errors: string[] }>;
     },
     onSuccess: () => {
@@ -77,12 +73,7 @@ export function useFileDelete(deviceId: string) {
         `/api/devices/${deviceId}/files?path=${encodeURIComponent(filePath)}`,
         { method: "DELETE" },
       );
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(
-          (body as { error?: string })?.error || "Delete failed",
-        );
-      }
+      await throwOnNotOk(res, "Delete failed");
       return res.json();
     },
     onSuccess: () => {
