@@ -15,6 +15,7 @@ import { DriveStatusPanel } from "../../components/device/drive-status-panel.tsx
 import { MachineControls } from "../../components/device/machine-controls.tsx";
 import { UploadMountPanel } from "../../components/device/upload-mount-panel.tsx";
 import { C64FileBrowser } from "../../components/device/file-browser.tsx";
+import { FlipWidget } from "../../components/device/flip-widget.tsx";
 
 export const Route = createFileRoute("/devices/$deviceId")({
   component: DeviceDashboardPage,
@@ -108,6 +109,10 @@ function DeviceDashboardPage() {
                 isRemoving={actions.removeDisk.isPending}
               />
             ) : null}
+          </div>
+
+          <div className="mt-[1em]">
+            <FlipWidget deviceId={deviceId} />
           </div>
 
           <div className="mt-[1em]">

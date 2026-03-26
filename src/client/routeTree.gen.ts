@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CollectionsIndexRouteImport } from './routes/collections/index'
+import { Route as DevicesDeviceIdRouteImport } from './routes/devices/$deviceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -17,26 +19,46 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
+  id: '/collections/',
+  path: '/collections/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const DevicesDeviceIdRoute = DevicesDeviceIdRouteImport.update({
+  id: '/devices/$deviceId',
+  path: '/devices/$deviceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/collections/': typeof CollectionsIndexRoute
+  '/devices/$deviceId': typeof DevicesDeviceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/collections': typeof CollectionsIndexRoute
+  '/devices/$deviceId': typeof DevicesDeviceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/collections/': typeof CollectionsIndexRoute
+  '/devices/$deviceId': typeof DevicesDeviceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/collections/' | '/devices/$deviceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/collections' | '/devices/$deviceId'
+  id: '__root__' | '/' | '/collections/' | '/devices/$deviceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CollectionsIndexRoute: typeof CollectionsIndexRoute
+  DevicesDeviceIdRoute: typeof DevicesDeviceIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +70,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collections/': {
+      id: '/collections/'
+      path: '/collections/'
+      fullPath: '/collections/'
+      preLoaderRoute: typeof CollectionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/devices/$deviceId': {
+      id: '/devices/$deviceId'
+      path: '/devices/$deviceId'
+      fullPath: '/devices/$deviceId'
+      preLoaderRoute: typeof DevicesDeviceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CollectionsIndexRoute: CollectionsIndexRoute,
+  DevicesDeviceIdRoute: DevicesDeviceIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
