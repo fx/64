@@ -17,8 +17,8 @@ Tasks are tracked in each spec file. Work in order — later specs depend on ear
 
 ### Phase 2 — Functional UI
 
-- [ ] [0004 — Device UI: Setup, Dashboard & Disk Upload](specs/0004-device-ui.md) — Register device, view status, upload & mount .d64 files
-- [ ] [0005 — Real-Time State & File Browser](specs/0005-realtime-and-file-browser.md) — SSE polling, FTP file browser, live dashboard updates
+- [x] [0004 — Device UI: Setup, Dashboard & Disk Upload](specs/0004-device-ui.md) (PRs #5, #6, #7, #8)
+- [x] [0005 — Real-Time State & File Browser](specs/0005-realtime-and-file-browser.md) (PRs #9, #10, #11)
 
 ### Backlog
 
