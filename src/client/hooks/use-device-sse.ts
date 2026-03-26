@@ -48,6 +48,13 @@ export function useDeviceSSE(deviceId: string): void {
         queryClient.invalidateQueries({ queryKey: ["devices", deviceId] });
       });
 
+      // Macro execution SSE events — invalidate execution cache for real-time progress
+      for (const eventType of ["macro:step", "macro:complete", "macro:failed"] as const) {
+        es.addEventListener(eventType, () => {
+          queryClient.invalidateQueries({ queryKey: ["macroExecutions"] });
+        });
+      }
+
       es.onopen = () => {
         reconnectDelay.current = MIN_RECONNECT_MS;
       };

@@ -115,6 +115,7 @@ interface C64FileBrowserProps {
   deviceId: string;
   initialPath?: string;
   onSelectDisk?: (path: string) => void;
+  onSelectFile?: (path: string) => void;
   onPlayMusic?: (path: string, fileType: string) => void;
   onClose?: () => void;
 }
@@ -123,6 +124,7 @@ export function C64FileBrowser({
   deviceId,
   initialPath = "/",
   onSelectDisk,
+  onSelectFile,
   onPlayMusic,
   onClose,
 }: C64FileBrowserProps) {
@@ -159,10 +161,12 @@ export function C64FileBrowser({
         setSelectedFile(filePath);
         if (isDiskType(entry.fileType) && onSelectDisk) {
           onSelectDisk(filePath);
+        } else if (!isDiskType(entry.fileType) && onSelectFile) {
+          onSelectFile(filePath);
         }
       }
     },
-    [currentPath, navigateTo, onSelectDisk],
+    [currentPath, navigateTo, onSelectDisk, onSelectFile],
   );
 
   const handlePathGo = useCallback(() => {

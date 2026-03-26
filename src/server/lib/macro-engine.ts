@@ -1,4 +1,5 @@
 import type { Device, Macro, MacroExecution, MacroStep } from "@shared/types.ts";
+import { emitMacroEvent } from "./macro-events.ts";
 
 const STEP_TIMEOUT_MS = 10000;
 const MAX_RETAINED_EXECUTIONS = 100;
@@ -56,6 +57,13 @@ export class MacroEngine {
         execution.status = "cancelled";
         execution.completedAt = new Date().toISOString();
         this.abortFlags.delete(execId);
+        emitMacroEvent({
+          type: "macro:failed",
+          executionId: execId,
+          macroId: macro.id,
+          deviceId: device.id,
+          data: { currentStep: i, totalSteps: macro.steps.length, error: "Cancelled" },
+        });
         return;
       }
 
@@ -64,12 +72,42 @@ export class MacroEngine {
 
       try {
         await this.executeStep(step, device, execId);
+
+        // Re-check abort flag after step completes (e.g. delay cancelled mid-sleep)
+        if (this.abortFlags.get(execId)) {
+          execution.status = "cancelled";
+          execution.completedAt = new Date().toISOString();
+          this.abortFlags.delete(execId);
+          emitMacroEvent({
+            type: "macro:failed",
+            executionId: execId,
+            macroId: macro.id,
+            deviceId: device.id,
+            data: { currentStep: i, totalSteps: macro.steps.length, error: "Cancelled" },
+          });
+          return;
+        }
+
+        emitMacroEvent({
+          type: "macro:step",
+          executionId: execId,
+          macroId: macro.id,
+          deviceId: device.id,
+          data: { currentStep: i, totalSteps: macro.steps.length, step },
+        });
       } catch (err) {
         execution.status = "failed";
         execution.error =
           err instanceof Error ? err.message : String(err);
         execution.completedAt = new Date().toISOString();
         this.abortFlags.delete(execId);
+        emitMacroEvent({
+          type: "macro:failed",
+          executionId: execId,
+          macroId: macro.id,
+          deviceId: device.id,
+          data: { currentStep: i, totalSteps: macro.steps.length, error: execution.error },
+        });
         return;
       }
     }
@@ -78,6 +116,13 @@ export class MacroEngine {
     execution.currentStep = macro.steps.length;
     execution.completedAt = new Date().toISOString();
     this.abortFlags.delete(execId);
+    emitMacroEvent({
+      type: "macro:complete",
+      executionId: execId,
+      macroId: macro.id,
+      deviceId: device.id,
+      data: { currentStep: macro.steps.length, totalSteps: macro.steps.length },
+    });
   }
 
   private async executeStep(
