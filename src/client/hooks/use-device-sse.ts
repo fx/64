@@ -31,6 +31,15 @@ export function useDeviceSSE(deviceId: string): void {
         } catch { /* ignore malformed data */ }
       });
 
+      for (const evt of ["playback:play", "playback:stop", "playback:next", "playback:prev"] as const) {
+        es.addEventListener(evt, (e: MessageEvent) => {
+          try {
+            const data = JSON.parse(e.data);
+            queryClient.setQueryData(["devices", deviceId, "playback"], data);
+          } catch { /* ignore malformed data */ }
+        });
+      }
+
       es.addEventListener("offline", () => {
         queryClient.invalidateQueries({ queryKey: ["devices", deviceId] });
       });
