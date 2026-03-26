@@ -3,6 +3,7 @@ import { streamSSE } from "hono/streaming";
 import type { DeviceStore } from "../lib/device-store.ts";
 import type { DevicePoller } from "../lib/device-poller.ts";
 import { onDeviceEvent } from "../lib/device-events.ts";
+import { onPlaybackEvent } from "../lib/playback-events.ts";
 
 export function createEventRoutes(store: DeviceStore, poller?: DevicePoller) {
   const events = new Hono();
@@ -124,10 +125,26 @@ export function createEventRoutes(store: DeviceStore, poller?: DevicePoller) {
           });
       });
 
+      // Listen for playback events for this device
+      const unsubPlayback = onPlaybackEvent((event) => {
+        if (event.deviceId !== deviceId) return;
+
+        stream
+          .writeSSE({
+            event: event.type,
+            data: JSON.stringify(event.data),
+            id: String(id++),
+          })
+          .catch(() => {
+            unsubPlayback();
+          });
+      });
+
       await new Promise<void>((resolve) => {
         stream.onAbort(() => {
           unsubState?.();
           unsubDevice();
+          unsubPlayback();
           resolve();
         });
       });

@@ -304,17 +304,17 @@ src/client/
   - [ ] Macro manager page at `/macros`: list, create/edit/delete, step editor
   - [ ] File browser integration for selecting files in mount/run steps
   - [ ] Execute button with device selector, real-time progress display
-- [ ] Implement playlist CRUD API with JSON persistence
-  - [ ] Create `Playlist`, `Track`, `PlaybackState` TypeScript types
-  - [ ] Implement `PlaylistStore`: load/save `data/playlists.json`
-  - [ ] CRUD endpoints: `GET/POST /api/playlists`, `GET/PUT/DELETE /api/playlists/:id`
-- [ ] Implement playback control API
-  - [ ] `POST /api/devices/:deviceId/playback/play` — play single track or start playlist
-  - [ ] Route to `PUT /v1/runners:sidplay` or `PUT /v1/runners:modplay` based on type, pass `songnr`
-  - [ ] `POST .../playback/next`, `.../playback/prev` — advance playlist position
-  - [ ] `POST .../playback/stop` — reset machine via `PUT /v1/machine:reset`
-  - [ ] `GET .../playback` — return current playback state
-  - [ ] Track playback state per device in memory; emit `playback` SSE events
+- [x] Implement playlist CRUD API with JSON persistence (PR #14)
+  - [x] Create `Playlist`, `Track`, `PlaybackState` TypeScript types
+  - [x] Implement `PlaylistStore`: load/save `data/playlists.json`
+  - [x] CRUD endpoints: `GET/POST /api/playlists`, `GET/PUT/DELETE /api/playlists/:id`
+- [x] Implement playback control API (PR #14)
+  - [x] `POST /api/devices/:deviceId/playback/play` — play single track or start playlist
+  - [x] Route to `PUT /v1/runners:sidplay` or `PUT /v1/runners:modplay` based on type, pass `songnr`
+  - [x] `POST .../playback/next`, `.../playback/prev` — advance playlist position
+  - [x] `POST .../playback/stop` — reset machine via `PUT /v1/machine:reset`
+  - [x] `GET .../playback` — return current playback state
+  - [x] Track playback state per device in memory; emit `playback` SSE events
 - [ ] Build jukebox UI: music browser, playlist manager, now-playing bar
   - [ ] Music browser: filtered file browser showing only `.sid`/`.mod` files, quick-play on click
   - [ ] Playlist manager page at `/playlists`: CRUD, drag-to-reorder, SID sub-song selector

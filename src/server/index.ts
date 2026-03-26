@@ -7,10 +7,13 @@ import { createUploadMountRoutes } from "./routes/upload-mount.ts";
 import { createFileRoutes } from "./routes/files.ts";
 import { createCollectionRoutes } from "./routes/collections.ts";
 import { createMacroRoutes } from "./routes/macros.ts";
+import { createPlaylistRoutes } from "./routes/playlists.ts";
 import { DeviceStore } from "./lib/device-store.ts";
 import { CollectionStore } from "./lib/collection-store.ts";
 import { MacroStore } from "./lib/macro-store.ts";
 import { MacroEngine } from "./lib/macro-engine.ts";
+import { PlaylistStore } from "./lib/playlist-store.ts";
+import { PlaybackStateManager } from "./lib/playback-state.ts";
 import { DevicePoller } from "./lib/device-poller.ts";
 import { startHealthChecker } from "./lib/health-checker.ts";
 import { cors } from "./middleware/cors.ts";
@@ -19,6 +22,8 @@ const store = new DeviceStore();
 const collectionStore = new CollectionStore();
 const macroStore = new MacroStore();
 const macroEngine = new MacroEngine();
+const playlistStore = new PlaylistStore();
+const playbackStateManager = new PlaybackStateManager();
 const poller = new DevicePoller(store);
 
 const deviceRoutes = createDeviceRoutes(store);
@@ -27,6 +32,7 @@ const uploadMountRoutes = createUploadMountRoutes(store);
 const fileRoutes = createFileRoutes(store);
 const collectionRoutes = createCollectionRoutes(collectionStore, store);
 const macroRoutes = createMacroRoutes(macroStore, macroEngine, store);
+const playlistRoutes = createPlaylistRoutes(playlistStore, playbackStateManager, store);
 const proxyRoutes = createProxyRoutes(store);
 
 const app = new Hono();
@@ -42,6 +48,7 @@ const apiRoutes = app
   .route("/", fileRoutes)
   .route("/", collectionRoutes)
   .route("/", macroRoutes)
+  .route("/", playlistRoutes)
   .route("/", proxyRoutes);
 
 export type AppType = typeof apiRoutes;
