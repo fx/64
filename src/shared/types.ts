@@ -136,3 +136,36 @@ export interface MacroExecution {
   startedAt: string;
   completedAt?: string;
 }
+
+// ── SID/MOD Jukebox ──────────────────────────────────
+
+export interface Track {
+  path: string; // "/USB0/Music/song.sid"
+  type: "sid" | "mod";
+  title: string; // display name (filename-based)
+  songnr?: number; // for multi-tune SID files
+}
+
+export interface Playlist {
+  id: string;
+  name: string;
+  tracks: Track[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlaybackState {
+  deviceId: string;
+  status: "playing" | "stopped";
+  currentTrack?: Track;
+  playlistId?: string;
+  position: number; // current track index in playlist
+}
+
+export type PlaybackEventType = "playback:play" | "playback:stop" | "playback:next" | "playback:prev";
+
+export interface PlaybackEvent {
+  type: PlaybackEventType;
+  deviceId: string;
+  data: PlaybackState;
+}
