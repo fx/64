@@ -190,13 +190,13 @@ src/client/
 ## Acceptance Criteria
 
 ### Real-Time State
-- [ ] Polling loop runs for each online device at configured intervals
-- [ ] SSE stream delivers drive status changes within one poll cycle
-- [ ] New SSE connections receive current state immediately
-- [ ] Offline/online transitions emit events
-- [ ] Only changed state is emitted (diff-based)
-- [ ] Client TanStack Query cache updates on SSE events without refetching
-- [ ] Device dashboard auto-updates when drives change (no manual refresh)
+- [x] Polling loop runs for each online device at configured intervals
+- [x] SSE stream delivers drive status changes within one poll cycle
+- [x] New SSE connections receive current state immediately
+- [x] Offline/online transitions emit events
+- [x] Only changed state is emitted (diff-based)
+- [x] Client TanStack Query cache updates on SSE events without refetching
+- [x] Device dashboard auto-updates when drives change (no manual refresh)
 
 ### File Browser
 - [ ] `GET /api/devices/:id/files?path=/` lists root directory via FTP
@@ -211,23 +211,23 @@ src/client/
 
 ## Tasks
 
-- [ ] Implement server-side DevicePoller and state cache
-  - [ ] Create `DevicePoller` class with per-device background polling loops
-  - [ ] Poll `/v1/drives` every 5s and `/v1/info` every 30s per online device
-  - [ ] In-memory state cache per device with last-known values
-  - [ ] Deep-equality comparison: only flag changes when values differ
-  - [ ] Handle device going offline: pause polling with backoff, emit offline event
-  - [ ] Start/stop polling when devices are added/removed from registry
-- [ ] Implement per-device SSE state stream
-  - [ ] `GET /api/events/devices/:deviceId` — SSE endpoint with event types: `drives`, `info`, `offline`, `online`
-  - [ ] Enhance existing `GET /api/events/devices` global stream with state change events
-  - [ ] Send current cached state as initial events for new SSE connections
-  - [ ] Only emit changed state (diff-based)
-- [ ] Implement client-side SSE + TanStack Query integration
-  - [ ] `useDeviceSSE(deviceId)` hook: opens EventSource, updates query cache via `queryClient.setQueryData()`
-  - [ ] Map SSE events to query keys: `drives` → `['devices', id, 'drives']`, `info` → `['devices', id, 'info']`
-  - [ ] Auto-reconnect on disconnect with exponential backoff
-  - [ ] Integrate into device dashboard from spec 0004 (auto-update without manual refresh)
+- [x] Implement server-side DevicePoller and state cache
+  - [x] Create `DevicePoller` class with per-device background polling loops
+  - [x] Poll `/v1/drives` every 5s and `/v1/info` every 30s per online device
+  - [x] In-memory state cache per device with last-known values
+  - [x] Deep-equality comparison: only flag changes when values differ
+  - [x] Handle device going offline: pause polling with backoff, emit offline event
+  - [x] Start/stop polling when devices are added/removed from registry
+- [x] Implement per-device SSE state stream
+  - [x] `GET /api/events/devices/:deviceId` — SSE endpoint with event types: `drives`, `info`, `offline`, `online`
+  - [x] Enhance existing `GET /api/events/devices` global stream with state change events
+  - [x] Send current cached state as initial events for new SSE connections
+  - [x] Only emit changed state (diff-based)
+- [x] Implement client-side SSE + TanStack Query integration
+  - [x] `useDeviceSSE(deviceId)` hook: opens EventSource, updates query cache via `queryClient.setQueryData()`
+  - [x] Map SSE events to query keys: `drives` → `['devices', id, 'drives']`, `info` → `['devices', id, 'info']`
+  - [x] Auto-reconnect on disconnect with exponential backoff
+  - [x] Integrate into device dashboard from spec 0004 (auto-update without manual refresh)
 - [x] Implement FTP connection pool and `basic-ftp` integration
   - [x] Create `FtpPool` class: per-device pool (1-2 connections), 60s idle timeout, auto-reconnect
   - [x] Use device registry for FTP host/password (same credentials as HTTP API)
