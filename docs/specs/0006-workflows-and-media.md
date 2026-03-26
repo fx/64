@@ -315,7 +315,7 @@ src/client/
   - [x] `POST .../playback/stop` — reset machine via `PUT /v1/machine:reset`
   - [x] `GET .../playback` — return current playback state
   - [x] Track playback state per device in memory; emit `playback` SSE events
-- [ ] Build jukebox UI: music browser, playlist manager, now-playing bar
-  - [ ] Music browser: filtered file browser showing only `.sid`/`.mod` files, quick-play on click
-  - [ ] Playlist manager page at `/playlists`: CRUD, drag-to-reorder, SID sub-song selector
-  - [ ] Now-playing bar: persistent bottom bar with track name, next/prev/stop, playlist progress
+- [x] Build jukebox UI: music browser, playlist manager, now-playing bar
+  - [x] Music browser: filtered file browser showing only `.sid`/`.mod` files, quick-play on click
+  - [x] Playlist manager page at `/playlists`: CRUD, drag-to-reorder, SID sub-song selector
+  - [x] Now-playing bar: persistent bottom bar with track name, next/prev/stop, playlist progress
