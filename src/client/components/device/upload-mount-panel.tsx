@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { C64Box } from "../ui/c64-box.tsx";
 import { C64Button } from "../ui/c64-button.tsx";
 import { C64Input } from "../ui/c64-input.tsx";
@@ -20,14 +20,21 @@ const MODE_OPTIONS = [
 
 interface UploadMountPanelProps {
   deviceId: string;
+  externalMountPath?: string;
 }
 
-export function UploadMountPanel({ deviceId }: UploadMountPanelProps) {
+export function UploadMountPanel({ deviceId, externalMountPath }: UploadMountPanelProps) {
   const actions = useDeviceActions(deviceId);
   const { addToast } = useToast();
   const [drive, setDrive] = useState("a");
   const [mode, setMode] = useState("readwrite");
   const [mountPath, setMountPath] = useState("");
+
+  useEffect(() => {
+    if (externalMountPath) {
+      setMountPath(externalMountPath);
+    }
+  }, [externalMountPath]);
 
   const handleFileUpload = (file: File) => {
     actions.uploadMount.mutate(
