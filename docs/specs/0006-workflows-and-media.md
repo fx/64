@@ -299,11 +299,11 @@ src/client/
   - [x] On failure: stop, record error and failing step
   - [x] `POST /api/macros/executions/:execId/cancel` — abort after current step
   - [x] `GET /api/macros/executions` and `GET /api/macros/executions/:execId` — status queries
-- [ ] Implement macro SSE events and build macro UI
-  - [ ] Emit `macro:step`, `macro:complete`, `macro:failed` SSE events during execution
-  - [ ] Macro manager page at `/macros`: list, create/edit/delete, step editor
-  - [ ] File browser integration for selecting files in mount/run steps
-  - [ ] Execute button with device selector, real-time progress display
+- [x] Implement macro SSE events and build macro UI
+  - [x] Emit `macro:step`, `macro:complete`, `macro:failed` SSE events during execution
+  - [x] Macro manager page at `/macros`: list, create/edit/delete, step editor
+  - [x] File browser integration for selecting files in mount/run steps
+  - [x] Execute button with device selector, real-time progress display
 - [x] Implement playlist CRUD API with JSON persistence (PR #14)
   - [x] Create `Playlist`, `Track`, `PlaybackState` TypeScript types
   - [x] Implement `PlaylistStore`: load/save `data/playlists.json`

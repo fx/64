@@ -38,6 +38,8 @@ interface ExecutionProgressProps {
 }
 
 export function ExecutionProgress({ executionId, onClose }: ExecutionProgressProps) {
+  // Polling via useExecutions() as baseline; real-time updates driven by
+  // macro SSE events in useDeviceSSE which invalidate the macroExecutions query.
   const { data: executions } = useExecutions();
   const cancelMutation = useCancelExecution();
 

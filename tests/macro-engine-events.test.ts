@@ -156,7 +156,7 @@ describe("MacroEngine SSE events", () => {
     }
   });
 
-  it("does not emit macro:step for delay steps but emits for overall progress", async () => {
+  it("emits macro:step for all steps including delay", async () => {
     globalThis.fetch = (() =>
       Promise.resolve(new Response("", { status: 200 }))) as any;
 
@@ -170,7 +170,7 @@ describe("MacroEngine SSE events", () => {
     await new Promise((r) => setTimeout(r, 200));
 
     const stepEvents = events.filter((e) => e.type === "macro:step");
-    // All 3 steps emit macro:step (including delay)
+    // All 3 steps (including delay) emit macro:step
     expect(stepEvents).toHaveLength(3);
     expect(stepEvents[0]!.data.currentStep).toBe(0);
     expect(stepEvents[1]!.data.currentStep).toBe(1);

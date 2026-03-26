@@ -126,13 +126,11 @@ function StepFields({ step, onChange, deviceId }: StepFieldsProps) {
               <C64Button onClick={() => setShowBrowser(true)}>BROWSE</C64Button>
             )}
           </div>
-          {step.mode !== undefined && (
-            <C64Input
-              placeholder="MODE (OPTIONAL)"
-              value={step.mode || ""}
-              onChange={(e) => onChange({ ...step, mode: e.target.value || undefined })}
-            />
-          )}
+          <C64Input
+            placeholder="MODE (OPTIONAL)"
+            value={step.mode || ""}
+            onChange={(e) => onChange({ ...step, mode: e.target.value || undefined })}
+          />
           {showBrowser && deviceId && (
             <div className="mt-[0.5em]">
               <C64FileBrowser
@@ -175,7 +173,7 @@ function StepFields({ step, onChange, deviceId }: StepFieldsProps) {
             <div className="mt-[0.5em]">
               <C64FileBrowser
                 deviceId={deviceId}
-                onSelectDisk={handleFileSelect}
+                onSelectFile={handleFileSelect}
                 onClose={() => setShowBrowser(false)}
               />
             </div>
@@ -212,7 +210,7 @@ function StepFields({ step, onChange, deviceId }: StepFieldsProps) {
             <div className="mt-[0.5em]">
               <C64FileBrowser
                 deviceId={deviceId}
-                onSelectDisk={handleFileSelect}
+                onSelectFile={handleFileSelect}
                 onClose={() => setShowBrowser(false)}
               />
             </div>

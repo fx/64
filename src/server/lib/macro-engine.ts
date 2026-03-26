@@ -72,6 +72,22 @@ export class MacroEngine {
 
       try {
         await this.executeStep(step, device, execId);
+
+        // Re-check abort flag after step completes (e.g. delay cancelled mid-sleep)
+        if (this.abortFlags.get(execId)) {
+          execution.status = "cancelled";
+          execution.completedAt = new Date().toISOString();
+          this.abortFlags.delete(execId);
+          emitMacroEvent({
+            type: "macro:failed",
+            executionId: execId,
+            macroId: macro.id,
+            deviceId: device.id,
+            data: { currentStep: i, totalSteps: macro.steps.length, error: "Cancelled" },
+          });
+          return;
+        }
+
         emitMacroEvent({
           type: "macro:step",
           executionId: execId,
