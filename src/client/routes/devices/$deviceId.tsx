@@ -7,6 +7,7 @@ import {
   useDriveStatus,
 } from "../../hooks/use-device-info.ts";
 import { useDeviceActions } from "../../hooks/use-device-actions.ts";
+import { useDeviceSSE } from "../../hooks/use-device-sse.ts";
 import { useToast } from "../../components/ui/toast-context.tsx";
 import { DriveStatusPanel } from "../../components/device/drive-status-panel.tsx";
 import { MachineControls } from "../../components/device/machine-controls.tsx";
@@ -22,6 +23,7 @@ function DeviceDashboardPage() {
   const info = useDeviceInfo(deviceId);
   const drives = useDriveStatus(deviceId);
   const actions = useDeviceActions(deviceId);
+  useDeviceSSE(deviceId);
   const { addToast } = useToast();
 
   const isLoading = device.isLoading || info.isLoading || drives.isLoading;

@@ -20,6 +20,10 @@ Tasks are tracked in each spec file. Work in order — later specs depend on ear
 - [ ] [0004 — Device UI: Setup, Dashboard & Disk Upload](specs/0004-device-ui.md) — Register device, view status, upload & mount .d64 files
 - [ ] [0005 — Real-Time State & File Browser](specs/0005-realtime-and-file-browser.md) — SSE polling, FTP file browser, live dashboard updates
 
+### Backlog
+
+- [ ] DevicePoller: track backoff independently per endpoint (drives/info) instead of shared per-device backoff (from PR #10 review)
+
 ### Phase 3 — Workflows & Media
 
 - [ ] [0006 — Workflows & Media](specs/0006-workflows-and-media.md) — Disk flip collections, automation macros, SID/MOD jukebox
