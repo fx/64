@@ -5,18 +5,22 @@ import { createEventRoutes } from "./routes/events.ts";
 import { createProxyRoutes } from "./routes/proxy.ts";
 import { createUploadMountRoutes } from "./routes/upload-mount.ts";
 import { createFileRoutes } from "./routes/files.ts";
+import { createCollectionRoutes } from "./routes/collections.ts";
 import { DeviceStore } from "./lib/device-store.ts";
+import { CollectionStore } from "./lib/collection-store.ts";
 import { DevicePoller } from "./lib/device-poller.ts";
 import { startHealthChecker } from "./lib/health-checker.ts";
 import { cors } from "./middleware/cors.ts";
 
 const store = new DeviceStore();
+const collectionStore = new CollectionStore();
 const poller = new DevicePoller(store);
 
 const deviceRoutes = createDeviceRoutes(store);
 const eventRoutes = createEventRoutes(store, poller);
 const uploadMountRoutes = createUploadMountRoutes(store);
 const fileRoutes = createFileRoutes(store);
+const collectionRoutes = createCollectionRoutes(collectionStore, store);
 const proxyRoutes = createProxyRoutes(store);
 
 const app = new Hono();
@@ -30,6 +34,7 @@ const apiRoutes = app
   .route("/", eventRoutes)
   .route("/", uploadMountRoutes)
   .route("/", fileRoutes)
+  .route("/", collectionRoutes)
   .route("/", proxyRoutes);
 
 export type AppType = typeof apiRoutes;
