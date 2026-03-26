@@ -51,6 +51,15 @@ function DeviceListPage() {
         <p>DEVICE MANAGEMENT CONSOLE</p>
       </C64Box>
 
+      <div className="mt-[1em] flex gap-[1ch]">
+        <Link
+          to="/collections"
+          className="c64-button inline-block no-underline"
+        >
+          DISK COLLECTIONS
+        </Link>
+      </div>
+
       <div className="mt-[1em]">
         <C64Box title="REGISTER DEVICE">
           <div className="flex flex-col gap-[0.5em]">
