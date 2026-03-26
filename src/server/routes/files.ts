@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { Writable } from "node:stream";
+import { Readable, Writable } from "node:stream";
 import type { DeviceStore } from "../lib/device-store.ts";
 import { FtpPool } from "../lib/ftp-pool.ts";
 import { getExtension, getFileType, getFileTypeKey } from "../lib/file-type.ts";
@@ -256,7 +256,6 @@ export function createFileRoutes(store: DeviceStore) {
       for (const file of actualFiles) {
         try {
           const buffer = Buffer.from(await file.arrayBuffer());
-          const { Readable } = await import("node:stream");
           const readable = Readable.from(buffer);
           const remotePath = targetDir + file.name;
           await client.uploadFrom(readable, remotePath);
