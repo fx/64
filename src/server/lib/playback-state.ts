@@ -1,6 +1,5 @@
-import type { PlaybackState } from "@shared/types.ts";
+import type { PlaybackState, PlaybackEventType } from "@shared/types.ts";
 import { emitPlaybackEvent } from "./playback-events.ts";
-import type { PlaybackEventType } from "@shared/types.ts";
 
 export class PlaybackStateManager {
   private states: Map<string, PlaybackState> = new Map();
