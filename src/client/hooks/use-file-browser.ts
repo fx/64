@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { throwOnNotOk } from "../lib/api.ts";
 
 interface DirectoryEntry {
   name: string;
@@ -16,16 +17,6 @@ interface DirectoryListing {
 }
 
 export type { DirectoryEntry, DirectoryListing };
-
-async function throwOnNotOk(res: Response, fallback: string): Promise<void> {
-  if (res.ok) return;
-  const body = await res.json().catch(() => null);
-  const msg =
-    (body as { error?: string })?.error ||
-    (body as { errors?: string[] })?.errors?.[0] ||
-    fallback;
-  throw new Error(msg);
-}
 
 export function useFileListing(deviceId: string, path: string) {
   return useQuery({

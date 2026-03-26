@@ -10,7 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as CollectionsIndexRouteImport } from './routes/collections/index'
+import { Route as PlaylistsIndexRouteImport } from './routes/playlists/index'
+import { Route as MacrosIndexRouteImport } from './routes/macros/index'
 import { Route as DevicesDeviceIdRouteImport } from './routes/devices/$deviceId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,13 +19,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-
-const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
-  id: '/collections/',
-  path: '/collections/',
+const PlaylistsIndexRoute = PlaylistsIndexRouteImport.update({
+  id: '/playlists/',
+  path: '/playlists/',
   getParentRoute: () => rootRouteImport,
 } as any)
-
+const MacrosIndexRoute = MacrosIndexRouteImport.update({
+  id: '/macros/',
+  path: '/macros/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DevicesDeviceIdRoute = DevicesDeviceIdRouteImport.update({
   id: '/devices/$deviceId',
   path: '/devices/$deviceId',
@@ -33,32 +37,36 @@ const DevicesDeviceIdRoute = DevicesDeviceIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/collections/': typeof CollectionsIndexRoute
   '/devices/$deviceId': typeof DevicesDeviceIdRoute
+  '/macros/': typeof MacrosIndexRoute
+  '/playlists/': typeof PlaylistsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/collections': typeof CollectionsIndexRoute
   '/devices/$deviceId': typeof DevicesDeviceIdRoute
+  '/macros': typeof MacrosIndexRoute
+  '/playlists': typeof PlaylistsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/collections/': typeof CollectionsIndexRoute
   '/devices/$deviceId': typeof DevicesDeviceIdRoute
+  '/macros/': typeof MacrosIndexRoute
+  '/playlists/': typeof PlaylistsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/collections/' | '/devices/$deviceId'
+  fullPaths: '/' | '/devices/$deviceId' | '/macros/' | '/playlists/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/collections' | '/devices/$deviceId'
-  id: '__root__' | '/' | '/collections/' | '/devices/$deviceId'
+  to: '/' | '/devices/$deviceId' | '/macros' | '/playlists'
+  id: '__root__' | '/' | '/devices/$deviceId' | '/macros/' | '/playlists/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CollectionsIndexRoute: typeof CollectionsIndexRoute
   DevicesDeviceIdRoute: typeof DevicesDeviceIdRoute
+  MacrosIndexRoute: typeof MacrosIndexRoute
+  PlaylistsIndexRoute: typeof PlaylistsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -70,11 +78,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/collections/': {
-      id: '/collections/'
-      path: '/collections/'
-      fullPath: '/collections/'
-      preLoaderRoute: typeof CollectionsIndexRouteImport
+    '/playlists/': {
+      id: '/playlists/'
+      path: '/playlists'
+      fullPath: '/playlists/'
+      preLoaderRoute: typeof PlaylistsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/macros/': {
+      id: '/macros/'
+      path: '/macros'
+      fullPath: '/macros/'
+      preLoaderRoute: typeof MacrosIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/devices/$deviceId': {
@@ -89,8 +104,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CollectionsIndexRoute: CollectionsIndexRoute,
   DevicesDeviceIdRoute: DevicesDeviceIdRoute,
+  MacrosIndexRoute: MacrosIndexRoute,
+  PlaylistsIndexRoute: PlaylistsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

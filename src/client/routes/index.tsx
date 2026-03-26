@@ -49,6 +49,11 @@ function DeviceListPage() {
     <div className="p-[1em]">
       <C64Box title="C64 ULTIMATE CONTROL">
         <p>DEVICE MANAGEMENT CONSOLE</p>
+        <div className="mt-[0.5em] flex gap-[1ch]">
+          <Link to="/playlists" className="c64-button inline-block no-underline">
+            {"\u266B"} PLAYLISTS
+          </Link>
+        </div>
       </C64Box>
 
       <div className="mt-[1em] flex gap-[1ch]">

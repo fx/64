@@ -27,6 +27,17 @@ export async function getErrorMessage(
   }
 }
 
+/** Throw an Error with a message extracted from a non-OK JSON response. */
+export async function throwOnNotOk(res: Response, fallback: string): Promise<void> {
+  if (res.ok) return;
+  const body = await res.json().catch(() => null);
+  const msg =
+    (body as { error?: string })?.error ||
+    (body as { errors?: string[] })?.errors?.[0] ||
+    fallback;
+  throw new Error(msg);
+}
+
 // Hono RPC type inference examples for proxy routes:
 //
 //   const info = await api.devices[':deviceId'].v1.info.$get({ param: { deviceId: '8D927F' } });
