@@ -201,6 +201,20 @@ describe("File Browser Routes", () => {
       expect(body.error).toContain("path");
     });
 
+    it("returns 400 for path traversal attempts", async () => {
+      store.upsert(makeDevice());
+      const res = await app.request("/api/devices/ABC123/files/info?path=/USB0/../etc/passwd");
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("..");
+    });
+
+    it("returns 400 for paths with backslashes", async () => {
+      store.upsert(makeDevice());
+      const res = await app.request(encodeURI("/api/devices/ABC123/files/info?path=/USB0\\file.d64"));
+      expect(res.status).toBe(400);
+    });
+
     it("returns file metadata with type info", async () => {
       store.upsert(makeDevice());
       mockList.mockImplementation(() =>
@@ -219,6 +233,24 @@ describe("File Browser Routes", () => {
       expect(body.category).toBe("disk-1541");
       expect(body.actions).toContain("mount");
       expect(body.fileType).toBe("d64");
+    });
+
+    it("returns directory info without file actions", async () => {
+      store.upsert(makeDevice());
+      mockList.mockImplementation(() =>
+        Promise.resolve([
+          { name: "Games", isDirectory: true, size: 0, modifiedAt: new Date("2024-03-15T10:30:00Z"), type: 2 },
+        ]),
+      );
+
+      const res = await app.request("/api/devices/ABC123/files/info?path=/USB0/Games");
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.type).toBe("directory");
+      expect(body.category).toBe("directory");
+      expect(body.actions).toEqual([]);
+      expect(body.fileType).toBeUndefined();
+      expect(body.size).toBeUndefined();
     });
 
     it("returns 404 when file not found in listing", async () => {
@@ -248,6 +280,12 @@ describe("File Browser Routes", () => {
     it("returns 400 when path is missing", async () => {
       store.upsert(makeDevice());
       const res = await app.request("/api/devices/ABC123/files/download");
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for path traversal attempts", async () => {
+      store.upsert(makeDevice());
+      const res = await app.request("/api/devices/ABC123/files/download?path=/USB0/../etc/passwd");
       expect(res.status).toBe(400);
     });
 
@@ -367,6 +405,41 @@ describe("File Browser Routes", () => {
       expect(body.errors[0]).toContain("Disk full");
     });
 
+    it("rejects filenames with path traversal", async () => {
+      store.upsert(makeDevice());
+      mockUploadFrom.mockImplementation(() => Promise.resolve());
+
+      const form = new FormData();
+      form.append("file", new File([new Uint8Array(100)], "../evil.d64"));
+
+      const res = await app.request("/api/devices/ABC123/files/upload?path=/USB0/", {
+        method: "POST",
+        body: form,
+      });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.uploaded).toHaveLength(0);
+      expect(body.errors[0]).toContain("invalid file name");
+    });
+
+    it("rejects filenames with path separators", async () => {
+      store.upsert(makeDevice());
+
+      const form = new FormData();
+      form.append("file", new File([new Uint8Array(100)], "sub/dir.d64"));
+
+      const res = await app.request("/api/devices/ABC123/files/upload?path=/USB0/", {
+        method: "POST",
+        body: form,
+      });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.uploaded).toHaveLength(0);
+      expect(body.errors[0]).toContain("invalid file name");
+    });
+
     it("returns 503 for offline device", async () => {
       store.upsert(makeDevice({ online: false }));
       const form = new FormData();
@@ -391,6 +464,14 @@ describe("File Browser Routes", () => {
     it("returns 400 when path is missing", async () => {
       store.upsert(makeDevice());
       const res = await app.request("/api/devices/ABC123/files", {
+        method: "DELETE",
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for path traversal attempts", async () => {
+      store.upsert(makeDevice());
+      const res = await app.request("/api/devices/ABC123/files?path=/USB0/../etc/passwd", {
         method: "DELETE",
       });
       expect(res.status).toBe(400);

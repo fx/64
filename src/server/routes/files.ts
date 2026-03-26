@@ -47,6 +47,31 @@ function normalizeDirPath(path: string): string {
   return path;
 }
 
+/** Validate a file path from user input. Returns error message or null if valid. */
+function validatePath(path: string): string | null {
+  if (!path.startsWith("/")) return "Path must be absolute (start with /)";
+  if (/\.\.[/\\]|[/\\]\.\.|^\.\.$/g.test(path)) return "Path must not contain '..' segments";
+  if (/\\/.test(path)) return "Path must not contain backslashes";
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(path)) return "Path must not contain control characters";
+  return null;
+}
+
+/** Sanitize a filename for use in Content-Disposition header */
+function sanitizeFilename(name: string): string {
+  // Remove any path separators and control characters
+  return name.replace(/[/\\"\x00-\x1f\x7f]/g, "_");
+}
+
+/** Check if a filename is safe for use as a remote path component */
+function isValidFileName(name: string): boolean {
+  if (!name || name === "." || name === "..") return false;
+  if (name.includes("/") || name.includes("\\") || name.includes("..")) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f\x7f]/.test(name)) return false;
+  return true;
+}
+
 export function createFileRoutes(store: DeviceStore) {
   const ftpPool = new FtpPool();
   const cache = new Map<string, CachedListing>();
@@ -151,6 +176,8 @@ export function createFileRoutes(store: DeviceStore) {
 
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "path query parameter is required" }, 400);
+    const pathError = validatePath(filePath);
+    if (pathError) return c.json({ error: pathError }, 400);
 
     let client;
     try {
@@ -160,11 +187,24 @@ export function createFileRoutes(store: DeviceStore) {
       const dirPath = filePath.substring(0, filePath.lastIndexOf("/") + 1) || "/";
       const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
 
+      if (!fileName) return c.json({ error: "Path must reference a file, not a directory" }, 400);
+
       const list = await client.list(dirPath);
       const item = list.find((f) => f.name === fileName);
 
       if (!item) {
         return c.json({ error: "File not found" }, 404);
+      }
+
+      if (item.isDirectory) {
+        return c.json({
+          name: item.name,
+          path: filePath,
+          type: "directory" as const,
+          modified: item.modifiedAt?.toISOString(),
+          category: "directory",
+          actions: [],
+        });
       }
 
       const ext = getExtension(item.name);
@@ -173,8 +213,8 @@ export function createFileRoutes(store: DeviceStore) {
       return c.json({
         name: item.name,
         path: filePath,
-        type: item.isDirectory ? "directory" : "file",
-        size: item.isDirectory ? undefined : item.size,
+        type: "file" as const,
+        size: item.size,
         modified: item.modifiedAt?.toISOString(),
         fileType: ext && typeInfo.category !== "generic" ? ext : undefined,
         category: typeInfo.category,
@@ -197,6 +237,8 @@ export function createFileRoutes(store: DeviceStore) {
 
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "path query parameter is required" }, 400);
+    const dlPathError = validatePath(filePath);
+    if (dlPathError) return c.json({ error: dlPathError }, 400);
 
     let client;
     try {
@@ -213,7 +255,8 @@ export function createFileRoutes(store: DeviceStore) {
       await client.downloadTo(writable, filePath);
       const data = Buffer.concat(chunks);
 
-      const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+      const rawName = filePath.substring(filePath.lastIndexOf("/") + 1);
+      const fileName = sanitizeFilename(rawName);
       return new Response(data, {
         headers: {
           "Content-Type": "application/octet-stream",
@@ -254,15 +297,20 @@ export function createFileRoutes(store: DeviceStore) {
       const errors: string[] = [];
 
       for (const file of actualFiles) {
+        const name = file.name;
+        if (!isValidFileName(name)) {
+          errors.push(`${name}: invalid file name`);
+          continue;
+        }
         try {
           const buffer = Buffer.from(await file.arrayBuffer());
           const readable = Readable.from(buffer);
-          const remotePath = targetDir + file.name;
+          const remotePath = targetDir + name;
           await client.uploadFrom(readable, remotePath);
-          uploaded.push(file.name);
+          uploaded.push(name);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          errors.push(`${file.name}: ${msg}`);
+          errors.push(`${name}: ${msg}`);
         }
       }
 
@@ -287,6 +335,8 @@ export function createFileRoutes(store: DeviceStore) {
 
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "path query parameter is required" }, 400);
+    const delPathError = validatePath(filePath);
+    if (delPathError) return c.json({ error: delPathError }, 400);
 
     let client;
     try {

@@ -7,6 +7,8 @@ interface PoolEntry {
   client: Client;
   idleTimer: ReturnType<typeof setTimeout> | null;
   inUse: boolean;
+  host: string;
+  password?: string;
 }
 
 interface DevicePool {
@@ -31,9 +33,15 @@ export class FtpPool {
     pool.host = host;
     pool.password = password;
 
-    // Find an idle connection
+    // Find an idle connection with matching credentials
     for (const entry of pool.entries) {
       if (!entry.inUse && !entry.client.closed) {
+        // If host/password changed, close stale connection
+        if (entry.host !== host || entry.password !== password) {
+          if (entry.idleTimer) clearTimeout(entry.idleTimer);
+          entry.client.close();
+          continue;
+        }
         entry.inUse = true;
         if (entry.idleTimer) {
           clearTimeout(entry.idleTimer);
@@ -49,7 +57,7 @@ export class FtpPool {
     // Create new connection if under limit
     if (pool.entries.length < MAX_CONNECTIONS) {
       const client = new Client();
-      const entry: PoolEntry = { client, idleTimer: null, inUse: true };
+      const entry: PoolEntry = { client, idleTimer: null, inUse: true, host, password };
       pool.entries.push(entry);
 
       try {
@@ -68,7 +76,7 @@ export class FtpPool {
       }
     }
 
-    // All connections in use — wait for one to free up (simple retry)
+    // All connections in use — caller should retry or handle the error
     throw new Error("FTP connection pool exhausted for device " + deviceId);
   }
 
