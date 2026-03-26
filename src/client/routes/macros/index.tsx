@@ -33,7 +33,7 @@ function MacroManagerPage() {
 
   const [editingMacro, setEditingMacro] = useState<Macro | null>(null);
   const [creating, setCreating] = useState(false);
-  const [executeTarget, setExecuteTarget] = useState<{ macroId: string; deviceId: string } | null>(null);
+  const [activeExecId, setActiveExecId] = useState<string | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
 
   const onlineDevices = devices?.filter((d) => d.online) ?? [];
@@ -86,7 +86,7 @@ function MacroManagerPage() {
       {
         onSuccess: (exec) => {
           addToast("MACRO EXECUTION STARTED", "success");
-          setExecuteTarget({ macroId, deviceId: exec.id });
+          setActiveExecId(exec.id);
         },
         onError: (err) => addToast(err.message, "error"),
       },
@@ -238,12 +238,12 @@ function MacroManagerPage() {
         </C64Box>
       </div>
 
-      {/* Execution history */}
-      {executeTarget && (
+      {/* Execution detail */}
+      {activeExecId && (
         <div className="mt-[1em]">
           <ExecutionProgress
-            executionId={executeTarget.deviceId}
-            onClose={() => setExecuteTarget(null)}
+            executionId={activeExecId}
+            onClose={() => setActiveExecId(null)}
           />
         </div>
       )}
