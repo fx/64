@@ -4,6 +4,7 @@ import type { DeviceStore } from "../lib/device-store.ts";
 import type { DevicePoller } from "../lib/device-poller.ts";
 import { onDeviceEvent } from "../lib/device-events.ts";
 import { onPlaybackEvent } from "../lib/playback-events.ts";
+import { onMacroEvent } from "../lib/macro-events.ts";
 
 export function createEventRoutes(store: DeviceStore, poller?: DevicePoller) {
   const events = new Hono();
@@ -48,10 +49,29 @@ export function createEventRoutes(store: DeviceStore, poller?: DevicePoller) {
           });
       });
 
+      // Listen for macro execution events
+      const unsubMacro = onMacroEvent((event) => {
+        stream
+          .writeSSE({
+            event: event.type,
+            data: JSON.stringify({
+              executionId: event.executionId,
+              macroId: event.macroId,
+              deviceId: event.deviceId,
+              ...event.data,
+            }),
+            id: String(id++),
+          })
+          .catch(() => {
+            unsubMacro();
+          });
+      });
+
       await new Promise<void>((resolve) => {
         stream.onAbort(() => {
           unsubDevice();
           unsubState?.();
+          unsubMacro();
           resolve();
         });
       });
@@ -140,11 +160,31 @@ export function createEventRoutes(store: DeviceStore, poller?: DevicePoller) {
           });
       });
 
+      // Listen for macro execution events for this device
+      const unsubMacro = onMacroEvent((event) => {
+        if (event.deviceId !== deviceId) return;
+
+        stream
+          .writeSSE({
+            event: event.type,
+            data: JSON.stringify({
+              executionId: event.executionId,
+              macroId: event.macroId,
+              ...event.data,
+            }),
+            id: String(id++),
+          })
+          .catch(() => {
+            unsubMacro();
+          });
+      });
+
       await new Promise<void>((resolve) => {
         stream.onAbort(() => {
           unsubState?.();
           unsubDevice();
           unsubPlayback();
+          unsubMacro();
           resolve();
         });
       });
