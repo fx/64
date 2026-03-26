@@ -273,15 +273,15 @@ src/client/
 
 ## Tasks
 
-- [ ] Implement disk flip collections CRUD API with JSON persistence
-  - [ ] Create `DiskFlipCollection` and `DiskEntry` TypeScript types
-  - [ ] Implement `CollectionStore`: load/save `data/collections.json`
-  - [ ] CRUD endpoints: `GET/POST /api/collections`, `GET/PUT/DELETE /api/collections/:id`
-- [ ] Implement flip action endpoint
-  - [ ] `POST /api/collections/:id/flip` — mount next (default), specific slot (`?slot=N`), or previous (`?direction=prev`)
-  - [ ] Track current position per collection per device in memory
-  - [ ] Call `PUT /v1/drives/<drive>:mount?image=<path>` on target device via proxy
-  - [ ] Return mounted disk info and position; wrap around at boundaries
+- [x] Implement disk flip collections CRUD API with JSON persistence
+  - [x] Create `DiskFlipCollection` and `DiskEntry` TypeScript types
+  - [x] Implement `CollectionStore`: load/save `data/collections.json`
+  - [x] CRUD endpoints: `GET/POST /api/collections`, `GET/PUT/DELETE /api/collections/:id`
+- [x] Implement flip action endpoint
+  - [x] `POST /api/collections/:id/flip` — mount next (default), specific slot (`?slot=N`), or previous (`?direction=prev`)
+  - [x] Track current position per collection per device in memory
+  - [x] Call `PUT /v1/drives/<drive>:mount?image=<path>` on target device via proxy
+  - [x] Return mounted disk info and position; wrap around at boundaries
 - [ ] Build collection manager UI and flip widget
   - [ ] Collection manager page at `/collections`: list, create/edit/delete, drag-to-reorder disks
   - [ ] File browser integration for selecting disk images
