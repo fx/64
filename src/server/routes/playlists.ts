@@ -5,12 +5,37 @@ import type { PlaybackStateManager } from "../lib/playback-state.ts";
 import type { DeviceStore } from "../lib/device-store.ts";
 import type { Device, Track, PlaybackState, PlaybackEventType } from "@shared/types.ts";
 
+const DEVICE_TIMEOUT_MS = 5000;
+
 async function parseJSON<T>(c: { req: { json: () => Promise<T> } }): Promise<T | null> {
   try {
     return await c.req.json();
   } catch {
     return null;
   }
+}
+
+/** Validate that a track object has required fields */
+function isValidTrack(t: unknown): t is Track {
+  if (!t || typeof t !== "object") return false;
+  const obj = t as Record<string, unknown>;
+  return (
+    typeof obj.path === "string" &&
+    obj.path.length > 0 &&
+    (obj.type === "sid" || obj.type === "mod") &&
+    typeof obj.title === "string"
+  );
+}
+
+/** Check a C64U JSON response for errors array. Returns error string or null. */
+function extractDeviceErrors(res: Response, body: unknown): string | null {
+  if (body && typeof body === "object" && "errors" in body) {
+    const errors = (body as { errors?: unknown }).errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      return errors.map((e) => (typeof e === "string" ? e : JSON.stringify(e))).join("; ");
+    }
+  }
+  return null;
 }
 
 /** Send a track play command to a C64U device. Returns null on success, or an error Response. */
@@ -24,19 +49,38 @@ async function sendTrackToDevice(c: Context, device: Device, track: Track): Prom
   const headers: Record<string, string> = {};
   if (device.password) headers["X-Password"] = device.password;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DEVICE_TIMEOUT_MS);
+
   try {
     const res = await fetch(`http://${device.ip}:${device.port}${runnerPath}?${params}`, {
       method: "PUT",
       headers,
+      signal: controller.signal,
     });
     if (!res.ok) {
       const text = await res.text();
       return c.json({ error: `Device returned ${res.status}: ${text}` }, 502);
     }
+    // Check for C64U errors array in JSON responses
+    if (res.headers.get("content-type")?.includes("application/json")) {
+      try {
+        const body = await res.json();
+        const errMsg = extractDeviceErrors(res, body);
+        if (errMsg) return c.json({ error: `Device reported error: ${errMsg}` }, 502);
+      } catch {
+        // JSON parse failure on 2xx — treat as success
+      }
+    }
     return null;
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return c.json({ error: "Device did not respond (timeout)" }, 504);
+    }
     const msg = err instanceof Error ? err.message : String(err);
     return c.json({ error: `Cannot reach device: ${msg}` }, 502);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -59,6 +103,12 @@ export function createPlaylistRoutes(
     if (!body.name || !body.name.trim()) {
       return c.json({ error: "name is required" }, 400);
     }
+    if (body.tracks !== undefined) {
+      if (!Array.isArray(body.tracks)) return c.json({ error: "tracks must be an array" }, 400);
+      for (const t of body.tracks) {
+        if (!isValidTrack(t)) return c.json({ error: "Each track must have path, type (sid|mod), and title" }, 400);
+      }
+    }
     const playlist = playlistStore.create({ name: body.name.trim(), tracks: body.tracks });
     return c.json(playlist, 201);
   });
@@ -72,7 +122,17 @@ export function createPlaylistRoutes(
   app.put("/playlists/:id", async (c) => {
     const body = await parseJSON<{ name?: string; tracks?: Track[] }>(c);
     if (!body) return c.json({ error: "Invalid JSON" }, 400);
-    const playlist = playlistStore.update(c.req.param("id"), body);
+    if (body.name !== undefined && !body.name.trim()) {
+      return c.json({ error: "name cannot be empty" }, 400);
+    }
+    if (body.tracks !== undefined) {
+      if (!Array.isArray(body.tracks)) return c.json({ error: "tracks must be an array" }, 400);
+      for (const t of body.tracks) {
+        if (!isValidTrack(t)) return c.json({ error: "Each track must have path, type (sid|mod), and title" }, 400);
+      }
+    }
+    const data = { ...body, name: body.name?.trim() };
+    const playlist = playlistStore.update(c.req.param("id"), data);
     if (!playlist) return c.json({ error: "Playlist not found" }, 404);
     return c.json(playlist);
   });
@@ -110,6 +170,9 @@ export function createPlaylistRoutes(
     let position = 0;
 
     if (body.track) {
+      if (!isValidTrack(body.track)) {
+        return c.json({ error: "Track must have path, type (sid|mod), and title" }, 400);
+      }
       track = body.track;
     } else if (body.playlistId) {
       const playlist = playlistStore.get(body.playlistId);
@@ -185,18 +248,37 @@ export function createPlaylistRoutes(
     const headers: Record<string, string> = {};
     if (device.password) headers["X-Password"] = device.password;
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DEVICE_TIMEOUT_MS);
+
     try {
       const res = await fetch(`http://${device.ip}:${device.port}/v1/machine:reset`, {
         method: "PUT",
         headers,
+        signal: controller.signal,
       });
       if (!res.ok) {
         const text = await res.text();
         return c.json({ error: `Device returned ${res.status}: ${text}` }, 502);
       }
+      // Check for C64U errors array
+      if (res.headers.get("content-type")?.includes("application/json")) {
+        try {
+          const body = await res.json();
+          const errMsg = extractDeviceErrors(res, body);
+          if (errMsg) return c.json({ error: `Device reported error: ${errMsg}` }, 502);
+        } catch {
+          // JSON parse failure — treat as success
+        }
+      }
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return c.json({ error: "Device did not respond (timeout)" }, 504);
+      }
       const msg = err instanceof Error ? err.message : String(err);
       return c.json({ error: `Cannot reach device: ${msg}` }, 502);
+    } finally {
+      clearTimeout(timer);
     }
 
     playbackState.clear(deviceId);

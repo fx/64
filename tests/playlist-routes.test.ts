@@ -123,6 +123,28 @@ describe("Playlist Routes", () => {
       expect(res.status).toBe(400);
     });
 
+    it("POST /api/playlists rejects invalid tracks", async () => {
+      const res = await app.request("/api/playlists", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Bad", tracks: [{ path: "/f" }] }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("Each track must have");
+    });
+
+    it("POST /api/playlists rejects non-array tracks", async () => {
+      const res = await app.request("/api/playlists", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Bad", tracks: "not array" }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("tracks must be an array");
+    });
+
     it("GET /api/playlists/:id returns playlist", async () => {
       const created = playlistStore.create({ name: "Test", tracks: makeTracks() });
       const res = await app.request(`/api/playlists/${created.id}`);
@@ -165,6 +187,42 @@ describe("Playlist Routes", () => {
         body: "bad",
       });
       expect(res.status).toBe(400);
+    });
+
+    it("PUT /api/playlists/:id rejects empty name", async () => {
+      const created = playlistStore.create({ name: "Test", tracks: [] });
+      const res = await app.request(`/api/playlists/${created.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "   " }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("name cannot be empty");
+    });
+
+    it("PUT /api/playlists/:id rejects invalid tracks", async () => {
+      const created = playlistStore.create({ name: "Test", tracks: [] });
+      const res = await app.request(`/api/playlists/${created.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tracks: [{ path: "/foo" }] }), // missing type and title
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("Each track must have");
+    });
+
+    it("PUT /api/playlists/:id rejects non-array tracks", async () => {
+      const created = playlistStore.create({ name: "Test", tracks: [] });
+      const res = await app.request(`/api/playlists/${created.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tracks: "not an array" }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("tracks must be an array");
     });
 
     it("DELETE /api/playlists/:id removes playlist", async () => {
@@ -347,6 +405,52 @@ describe("Playlist Routes", () => {
         body: "bad json",
       });
       expect(res.status).toBe(400);
+    });
+
+    it("POST play rejects invalid track (missing required fields)", async () => {
+      const res = await app.request("/api/devices/dev1/playback/play", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ track: { path: "/song.sid" } }), // missing type and title
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("Track must have");
+    });
+
+    it("POST play returns 502 when device reports C64U errors", async () => {
+      globalThis.fetch = mock(async () => {
+        return new Response(JSON.stringify({ errors: ["File not found"] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch;
+
+      const track: Track = { path: "/USB0/song.sid", type: "sid", title: "Song" };
+      const res = await app.request("/api/devices/dev1/playback/play", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ track }),
+      });
+      expect(res.status).toBe(502);
+      const body = await res.json();
+      expect(body.error).toContain("File not found");
+    });
+
+    it("POST play returns 504 on device timeout", async () => {
+      globalThis.fetch = mock(async () => {
+        throw new DOMException("The operation was aborted", "AbortError");
+      }) as typeof fetch;
+
+      const track: Track = { path: "/USB0/song.sid", type: "sid", title: "Song" };
+      const res = await app.request("/api/devices/dev1/playback/play", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ track }),
+      });
+      expect(res.status).toBe(504);
+      const body = await res.json();
+      expect(body.error).toContain("timeout");
     });
 
     it("POST play returns 502 when device returns error", async () => {
@@ -533,6 +637,32 @@ describe("Playlist Routes", () => {
 
       const res = await app.request("/api/devices/dev1/playback/stop", { method: "POST" });
       expect(res.status).toBe(502);
+    });
+
+    it("POST stop returns 504 on timeout (AbortError)", async () => {
+      globalThis.fetch = mock(async () => {
+        const err = new DOMException("The operation was aborted", "AbortError");
+        throw err;
+      }) as typeof fetch;
+
+      const res = await app.request("/api/devices/dev1/playback/stop", { method: "POST" });
+      expect(res.status).toBe(504);
+      const body = await res.json();
+      expect(body.error).toContain("timeout");
+    });
+
+    it("POST stop returns 502 when device reports C64U errors", async () => {
+      globalThis.fetch = mock(async () => {
+        return new Response(JSON.stringify({ errors: ["Drive not ready", { code: 42 }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch;
+
+      const res = await app.request("/api/devices/dev1/playback/stop", { method: "POST" });
+      expect(res.status).toBe(502);
+      const body = await res.json();
+      expect(body.error).toContain("Drive not ready");
     });
 
     // ── Next/prev with device errors ──────────────────
