@@ -57,3 +57,11 @@ export interface DeviceEvent {
     product?: string;
   };
 }
+
+export type DeviceStateEventType = "state:drives" | "state:info" | "state:offline" | "state:online";
+
+export interface DeviceStateEvent {
+  type: DeviceStateEventType;
+  deviceId: string;
+  data: unknown;
+}

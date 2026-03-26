@@ -1,4 +1,5 @@
 import type { C64DeviceInfo, C64VersionResponse } from "@shared/types.ts";
+import type { C64UDrivesResponse } from "@shared/c64u-types.ts";
 
 export type C64FetchResult<T> = { ok: true; data: T } | { ok: false; reason: string };
 
@@ -65,4 +66,13 @@ export async function fetchDeviceInfo(
   timeoutMs = 5000,
 ): Promise<C64FetchResult<C64DeviceInfo>> {
   return c64Fetch<C64DeviceInfo>(ip, port, "/v1/info", password, timeoutMs);
+}
+
+export async function fetchDrives(
+  ip: string,
+  port: number,
+  password?: string,
+  timeoutMs = 5000,
+): Promise<C64FetchResult<C64UDrivesResponse>> {
+  return c64Fetch<C64UDrivesResponse>(ip, port, "/v1/drives", password, timeoutMs);
 }
