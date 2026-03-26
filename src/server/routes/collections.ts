@@ -25,6 +25,34 @@ async function parseJSON<T>(c: { req: { json: () => Promise<T> } }): Promise<T |
   }
 }
 
+/** Validate and normalize disk entries */
+function validateDisks(disks: unknown[]): { disks: DiskEntry[]; error?: undefined } | { disks?: undefined; error: string } {
+  const result: DiskEntry[] = [];
+  for (let i = 0; i < disks.length; i++) {
+    const entry = disks[i] as Record<string, unknown> | null;
+    if (!entry || typeof entry !== "object") {
+      return { error: `disks[${i}] must be an object` };
+    }
+    if (entry.drive !== "a" && entry.drive !== "b") {
+      return { error: `disks[${i}].drive must be "a" or "b"` };
+    }
+    if (typeof entry.path !== "string" || !entry.path.trim()) {
+      return { error: `disks[${i}].path must be a non-empty string` };
+    }
+    if (typeof entry.label !== "string") {
+      return { error: `disks[${i}].label must be a string` };
+    }
+    result.push({
+      slot: i,
+      label: entry.label,
+      path: entry.path.trim(),
+      drive: entry.drive,
+      type: typeof entry.type === "string" ? entry.type : undefined,
+    });
+  }
+  return { disks: result };
+}
+
 /** Mount a disk image on the target device */
 async function mountDisk(
   device: { ip: string; port: number; password?: string },
@@ -34,19 +62,32 @@ async function mountDisk(
   const headers: Record<string, string> = {};
   if (device.password) headers["X-Password"] = device.password;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(url, {
       method: "PUT",
       headers,
       signal: controller.signal,
     });
-    clearTimeout(timer);
 
     if (!res.ok) {
       return { ok: false, error: `Device returned HTTP ${res.status}` };
     }
+
+    // Check for application-level errors in JSON response (consistent with c64-client.ts)
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      try {
+        const body = (await res.json()) as { errors?: string[] };
+        if (Array.isArray(body.errors) && body.errors.length > 0) {
+          return { ok: false, error: body.errors[0] };
+        }
+      } catch {
+        // Ignore JSON parsing errors — treat as success
+      }
+    }
+
     return { ok: true };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -54,6 +95,8 @@ async function mountDisk(
     }
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, error: `Cannot reach device — ${msg}` };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -78,10 +121,13 @@ export function createCollectionRoutes(collectionStore: CollectionStore, deviceS
         return c.json({ error: "disks must be an array" }, 400);
       }
 
+      const validated = validateDisks(body.disks);
+      if (validated.error) return c.json({ error: validated.error }, 400);
+
       const collection = collectionStore.create({
         name: body.name.trim(),
         description: body.description,
-        disks: body.disks,
+        disks: validated.disks,
       });
       return c.json(collection, 201);
     })
@@ -99,8 +145,21 @@ export function createCollectionRoutes(collectionStore: CollectionStore, deviceS
       const body = await parseJSON<{ name?: string; description?: string; disks?: DiskEntry[] }>(c);
       if (!body) return c.json({ error: "Invalid JSON" }, 400);
 
+      if (body.name !== undefined) {
+        if (typeof body.name !== "string" || !body.name.trim()) {
+          return c.json({ error: "name must be a non-empty string" }, 400);
+        }
+        body.name = body.name.trim();
+      }
+
       if (body.disks !== undefined && !Array.isArray(body.disks)) {
         return c.json({ error: "disks must be an array" }, 400);
+      }
+
+      if (body.disks !== undefined) {
+        const validated = validateDisks(body.disks);
+        if (validated.error) return c.json({ error: validated.error }, 400);
+        body.disks = validated.disks;
       }
 
       const collection = collectionStore.update(id, body);
@@ -138,7 +197,9 @@ export function createCollectionRoutes(collectionStore: CollectionStore, deviceS
 
       const slotParam = url.searchParams.get("slot");
       const direction = url.searchParams.get("direction");
-      const current = getPosition(id, deviceId);
+      // Clamp stored position to valid range in case disks were edited since last flip
+      const rawPosition = getPosition(id, deviceId);
+      const current = Math.min(rawPosition, collection.disks.length - 1);
       let targetSlot: number;
 
       if (slotParam !== null) {
@@ -176,4 +237,4 @@ export function createCollectionRoutes(collectionStore: CollectionStore, deviceS
 }
 
 // Exported for testing
-export { flipPositions, getPosition, setPosition, mountDisk };
+export { flipPositions, getPosition, setPosition, mountDisk, validateDisks };

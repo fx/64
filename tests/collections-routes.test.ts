@@ -144,6 +144,77 @@ describe("Collection CRUD routes", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /collections returns 400 for disk entry with invalid drive", async () => {
+    const res = await app.request("/api/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Game",
+        disks: [{ slot: 0, label: "Disk 1", path: "/test.d64", drive: "c" }],
+      }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("drive");
+  });
+
+  it("POST /collections returns 400 for disk entry with empty path", async () => {
+    const res = await app.request("/api/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Game",
+        disks: [{ slot: 0, label: "Disk 1", path: "", drive: "a" }],
+      }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("path");
+  });
+
+  it("POST /collections returns 400 for disk entry with non-string label", async () => {
+    const res = await app.request("/api/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Game",
+        disks: [{ slot: 0, label: 123, path: "/test.d64", drive: "a" }],
+      }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("label");
+  });
+
+  it("POST /collections returns 400 for non-object disk entry", async () => {
+    const res = await app.request("/api/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Game", disks: ["not an object"] }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("must be an object");
+  });
+
+  it("POST /collections normalizes slot numbers to sequential indices", async () => {
+    const res = await app.request("/api/collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Game",
+        disks: [
+          { slot: 99, label: "Disk A", path: "/a.d64", drive: "a" },
+          { slot: 99, label: "Disk B", path: "/b.d64", drive: "b" },
+        ],
+      }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.disks[0].slot).toBe(0);
+    expect(data.disks[1].slot).toBe(1);
+  });
+
   // ── GET /api/collections/:id ──────────────────────────
 
   it("GET /collections/:id returns collection", async () => {
@@ -202,6 +273,42 @@ describe("Collection CRUD routes", () => {
       body: "bad json",
     });
     expect(res.status).toBe(400);
+  });
+
+  it("PUT /collections/:id returns 400 for empty name", async () => {
+    const created = collectionStore.create({ name: "Game", disks: makeDisks() });
+    const res = await app.request(`/api/collections/${created.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "  " }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("name");
+  });
+
+  it("PUT /collections/:id trims name", async () => {
+    const created = collectionStore.create({ name: "Game", disks: makeDisks() });
+    const res = await app.request(`/api/collections/${created.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "  Trimmed  " }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.name).toBe("Trimmed");
+  });
+
+  it("PUT /collections/:id validates disk entries", async () => {
+    const created = collectionStore.create({ name: "Game", disks: makeDisks() });
+    const res = await app.request(`/api/collections/${created.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ disks: [{ label: "x", path: "/x.d64", drive: "c" }] }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("drive");
   });
 
   it("PUT /collections/:id returns 400 for non-array disks", async () => {
@@ -558,6 +665,43 @@ describe("Flip action endpoint", () => {
     );
 
     expect(capturedHeaders["X-Password"]).toBe("secret123");
+  });
+
+  it("returns 502 when device returns success with application-level errors", async () => {
+    globalThis.fetch = async () => {
+      return new Response(JSON.stringify({ errors: ["Disk image not found"] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+
+    const collection = collectionStore.create({ name: "Game", disks: makeDisks() });
+
+    const res = await app.request(
+      `/api/collections/${collection.id}/flip?deviceId=DEV001`,
+      { method: "POST" },
+    );
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data.error).toContain("Disk image not found");
+  });
+
+  it("clamps out-of-range position when disks are removed", async () => {
+    const collection = collectionStore.create({ name: "Game", disks: makeDisks(5) });
+    // Set position to 4 (last disk of 5)
+    flipPositions.set(collection.id, new Map([["DEV001", 4]]));
+
+    // Now reduce disks to 2
+    collectionStore.update(collection.id, { disks: makeDisks(2) });
+
+    // "next" from clamped position 1 (min(4, 1)) should wrap to 0
+    const res = await app.request(
+      `/api/collections/${collection.id}/flip?deviceId=DEV001`,
+      { method: "POST" },
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.position).toBeLessThan(2); // Must be within valid range
   });
 
   it("tracks positions independently per device", async () => {
