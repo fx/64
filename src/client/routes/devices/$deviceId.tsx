@@ -16,6 +16,8 @@ import { MachineControls } from "../../components/device/machine-controls.tsx";
 import { UploadMountPanel } from "../../components/device/upload-mount-panel.tsx";
 import { C64FileBrowser } from "../../components/device/file-browser.tsx";
 import { FlipWidget } from "../../components/device/flip-widget.tsx";
+import { NowPlayingBar } from "../../components/device/now-playing-bar.tsx";
+import { usePlayTrack } from "../../hooks/use-playback.ts";
 
 export const Route = createFileRoute("/devices/$deviceId")({
   component: DeviceDashboardPage,
@@ -29,6 +31,7 @@ function DeviceDashboardPage() {
   const actions = useDeviceActions(deviceId);
   useDeviceSSE(deviceId);
   const { addToast } = useToast();
+  const playTrack = usePlayTrack(deviceId);
   const [showFileBrowser, setShowFileBrowser] = useState(false);
   const [diskMountPath, setDiskMountPath] = useState<string | undefined>();
 
@@ -135,6 +138,22 @@ function DeviceDashboardPage() {
                   setDiskMountPath(path);
                   addToast(`SELECTED ${path.split("/").pop()} FOR MOUNT`, "info");
                 }}
+                onPlayMusic={(path, fileType) => {
+                  const name = path.split("/").pop()?.replace(/\.[^.]+$/, "") || "UNKNOWN";
+                  playTrack.mutate(
+                    {
+                      track: {
+                        path,
+                        type: fileType === "mod" ? "mod" : "sid",
+                        title: name,
+                      },
+                    },
+                    {
+                      onSuccess: () => addToast(`PLAYING ${name.toUpperCase()}`, "success"),
+                      onError: (err) => addToast(`PLAY FAILED: ${err.message}`, "error"),
+                    },
+                  );
+                }}
                 onClose={() => setShowFileBrowser(false)}
               />
             </div>
@@ -143,6 +162,10 @@ function DeviceDashboardPage() {
           <div className="mt-[1em]">
             <UploadMountPanel deviceId={deviceId} externalMountPath={diskMountPath} />
           </div>
+
+          {/* Bottom spacer for now-playing bar */}
+          <div className="h-[2em]" />
+          <NowPlayingBar deviceId={deviceId} />
         </>
       )}
     </div>

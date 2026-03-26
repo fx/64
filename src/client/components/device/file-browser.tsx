@@ -115,6 +115,7 @@ interface C64FileBrowserProps {
   deviceId: string;
   initialPath?: string;
   onSelectDisk?: (path: string) => void;
+  onPlayMusic?: (path: string, fileType: string) => void;
   onClose?: () => void;
 }
 
@@ -122,6 +123,7 @@ export function C64FileBrowser({
   deviceId,
   initialPath = "/",
   onSelectDisk,
+  onPlayMusic,
   onClose,
 }: C64FileBrowserProps) {
   const [currentPath, setCurrentPath] = useState(initialPath);
@@ -191,14 +193,20 @@ export function C64FileBrowser({
               addToast(`DELETE FAILED: ${err.message}`, "error"),
           });
           break;
+        case "play":
+          if (onPlayMusic && entry.fileType) {
+            onPlayMusic(filePath, entry.fileType);
+          } else {
+            addToast("PLAY NOT AVAILABLE", "info");
+          }
+          break;
         case "run":
         case "load":
-        case "play":
           addToast(`${action.toUpperCase()} NOT YET IMPLEMENTED`, "info");
           break;
       }
     },
-    [currentPath, deviceId, onSelectDisk, deleteMut, addToast],
+    [currentPath, deviceId, onSelectDisk, onPlayMusic, deleteMut, addToast],
   );
 
   const handleUpload = useCallback(
