@@ -1,5 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, getErrorMessage } from "../lib/api.ts";
+import { api } from "../lib/api.ts";
+
+async function getErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const clone = res.clone();
+    const body = (await clone.json()) as { error?: string };
+    return body?.error || fallback;
+  } catch {
+    try {
+      const clone = res.clone();
+      const text = await clone.text();
+      return text || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+}
 
 export function useCollections() {
   return useQuery({
@@ -7,9 +23,7 @@ export function useCollections() {
     queryFn: async () => {
       const res = await api.collections.$get();
       if (!res.ok)
-        throw new Error(
-          await getErrorMessage(res, "Failed to fetch collections"),
-        );
+        throw new Error(await getErrorMessage(res, "Failed to fetch collections"));
       return res.json();
     },
   });
@@ -21,9 +35,7 @@ export function useCollection(id: string) {
     queryFn: async () => {
       const res = await api.collections[":id"].$get({ param: { id } });
       if (!res.ok)
-        throw new Error(
-          await getErrorMessage(res, "Failed to fetch collection"),
-        );
+        throw new Error(await getErrorMessage(res, "Failed to fetch collection"));
       return res.json();
     },
     enabled: !!id,
@@ -45,9 +57,7 @@ export function useCreateCollection() {
     }) => {
       const res = await api.collections.$post({ json: body });
       if (!res.ok)
-        throw new Error(
-          await getErrorMessage(res, "Failed to create collection"),
-        );
+        throw new Error(await getErrorMessage(res, "Failed to create collection"));
       return res.json();
     },
     onSuccess: () => {
@@ -78,9 +88,7 @@ export function useUpdateCollection() {
         json: body,
       });
       if (!res.ok)
-        throw new Error(
-          await getErrorMessage(res, "Failed to update collection"),
-        );
+        throw new Error(await getErrorMessage(res, "Failed to update collection"));
       return res.json();
     },
     onSuccess: () => {
@@ -95,9 +103,7 @@ export function useDeleteCollection() {
     mutationFn: async (id: string) => {
       const res = await api.collections[":id"].$delete({ param: { id } });
       if (!res.ok)
-        throw new Error(
-          await getErrorMessage(res, "Failed to delete collection"),
-        );
+        throw new Error(await getErrorMessage(res, "Failed to delete collection"));
       return res.json();
     },
     onSuccess: () => {
@@ -107,6 +113,7 @@ export function useDeleteCollection() {
 }
 
 export function useFlipDisk() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       id,
@@ -130,6 +137,9 @@ export function useFlipDisk() {
       if (!res.ok)
         throw new Error(await getErrorMessage(res, "Flip failed"));
       return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
     },
   });
 }

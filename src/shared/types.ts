@@ -169,3 +169,20 @@ export interface PlaybackEvent {
   deviceId: string;
   data: PlaybackState;
 }
+
+// ── Macro Events ────────────────────────────────────
+
+export type MacroEventType = "macro:step" | "macro:complete" | "macro:failed";
+
+export interface MacroEvent {
+  type: MacroEventType;
+  executionId: string;
+  macroId: string;
+  deviceId: string;
+  data: {
+    currentStep?: number;
+    totalSteps?: number;
+    step?: MacroStep;
+    error?: string;
+  };
+}
