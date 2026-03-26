@@ -19,6 +19,7 @@ export const Route = createFileRoute("/collections/")({
 });
 
 interface DiskFormEntry {
+  key: string;
   label: string;
   path: string;
   drive: "a" | "b";
@@ -28,6 +29,11 @@ interface CollectionForm {
   name: string;
   description: string;
   disks: DiskFormEntry[];
+}
+
+let nextDiskKey = 0;
+function makeDiskKey(): string {
+  return `disk-${++nextDiskKey}`;
 }
 
 const EMPTY_FORM: CollectionForm = {
@@ -69,6 +75,7 @@ function CollectionsPage() {
       name: col.name,
       description: col.description ?? "",
       disks: col.disks.map((d) => ({
+        key: makeDiskKey(),
         label: d.label,
         path: d.path,
         drive: d.drive,
@@ -90,7 +97,12 @@ function CollectionsPage() {
       ...f,
       disks: [
         ...f.disks,
-        { label: `DISK ${f.disks.length + 1}`, path: "", drive: "a" as const },
+        {
+          key: makeDiskKey(),
+          label: `DISK ${f.disks.length + 1}`,
+          path: "",
+          drive: "a" as const,
+        },
       ],
     }));
   };
@@ -100,7 +112,12 @@ function CollectionsPage() {
       ...f,
       disks: f.disks.filter((_, i) => i !== index),
     }));
-    if (browseIndex === index) setBrowseIndex(null);
+    setBrowseIndex((current) => {
+      if (current === null) return null;
+      if (current === index) return null;
+      if (index < current) return current - 1;
+      return current;
+    });
   };
 
   const moveDisk = (index: number, direction: -1 | 1) => {
@@ -111,12 +128,18 @@ function CollectionsPage() {
       [disks[index], disks[target]] = [disks[target], disks[index]];
       return { ...f, disks };
     });
+    setBrowseIndex((current) => {
+      if (current === null) return null;
+      if (current === index) return target;
+      if (current === target) return index;
+      return current;
+    });
   };
 
-  const updateDisk = (
+  const updateDiskField = <K extends keyof DiskFormEntry>(
     index: number,
-    field: keyof DiskFormEntry,
-    value: string,
+    field: K,
+    value: DiskFormEntry[K],
   ) => {
     setForm((f) => ({
       ...f,
@@ -318,7 +341,7 @@ function CollectionsPage() {
                 )}
 
                 {form.disks.map((disk, i) => (
-                  <div key={i}>
+                  <div key={disk.key}>
                     <div className="flex items-center py-[0.25em]">
                       <span
                         className="px-[1ch]"
@@ -330,13 +353,20 @@ function CollectionsPage() {
                         <C64Input
                           value={disk.label}
                           onChange={(e) =>
-                            updateDisk(i, "label", e.target.value)
+                            updateDiskField(i, "label", e.target.value)
                           }
                           className="w-full"
                         />
                       </span>
-                      <span className="px-[1ch] flex-1 truncate">
-                        {disk.path || "(NONE)"}
+                      <span className="px-[1ch] flex-1">
+                        <C64Input
+                          value={disk.path}
+                          placeholder="/PATH/TO/DISK.D64"
+                          onChange={(e) =>
+                            updateDiskField(i, "path", e.target.value)
+                          }
+                          className="w-full"
+                        />
                       </span>
                       <span
                         className="px-[1ch]"
@@ -349,7 +379,7 @@ function CollectionsPage() {
                           ]}
                           value={disk.drive}
                           onChange={(e) =>
-                            updateDisk(
+                            updateDiskField(
                               i,
                               "drive",
                               e.target.value as "a" | "b",
@@ -397,7 +427,7 @@ function CollectionsPage() {
                         <C64FileBrowser
                           deviceId={browseDeviceId}
                           onSelectDisk={(path) => {
-                            updateDisk(i, "path", path);
+                            updateDiskField(i, "path", path);
                             setBrowseIndex(null);
                             addToast(
                               `SET PATH: ${path.split("/").pop()}`,

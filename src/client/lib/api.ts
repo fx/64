@@ -3,15 +3,19 @@ import type { AppType } from "../../server/index.ts";
 
 export const api = hc<AppType>("/").api;
 
-/** Extract an error message from a failed API response. */
+/** Extract an error message from a failed API response. Supports both `{ error }` and `{ errors[] }` shapes. */
 export async function getErrorMessage(
   res: Response,
   fallback: string,
 ): Promise<string> {
   try {
     const clone = res.clone();
-    const body = (await clone.json()) as { error?: string };
-    return body?.error || fallback;
+    const body = (await clone.json()) as { error?: string; errors?: string[] };
+    if (body?.error) return body.error;
+    if (Array.isArray(body?.errors) && body.errors.length > 0) {
+      return body.errors.filter((m) => typeof m === "string" && m).join("; ");
+    }
+    return fallback;
   } catch {
     try {
       const clone = res.clone();

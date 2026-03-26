@@ -19,7 +19,9 @@ export function FlipWidget({ deviceId }: FlipWidgetProps) {
 
   const selected = collections?.find((c) => c.id === selectedId);
   const totalDisks = selected?.disks.length ?? 0;
-  const currentDisk = selected?.disks[currentSlot];
+  // Clamp currentSlot to valid range in case collection was edited externally
+  const clampedSlot = totalDisks > 0 ? Math.min(currentSlot, totalDisks - 1) : 0;
+  const currentDisk = selected?.disks[clampedSlot];
 
   const handleFlip = (direction?: "prev", slot?: number) => {
     if (!selectedId) return;
@@ -81,7 +83,7 @@ export function FlipWidget({ deviceId }: FlipWidgetProps) {
           <>
             <div className="bg-c64-11-dark-grey px-[1ch] py-[0.25em]">
               <div>
-                DISK {currentSlot + 1}/{totalDisks}
+                DISK {clampedSlot + 1}/{totalDisks}
               </div>
               <div>{currentDisk?.label.toUpperCase() ?? "UNKNOWN"}</div>
               <div>
@@ -114,7 +116,7 @@ export function FlipWidget({ deviceId }: FlipWidgetProps) {
                     key={i}
                     onClick={() => handleFlip(undefined, i)}
                     disabled={flipMutation.isPending}
-                    className={i === currentSlot ? "c64-reverse" : ""}
+                    className={i === clampedSlot ? "c64-reverse" : ""}
                   >
                     {i + 1}
                   </C64Button>
