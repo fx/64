@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Device, Macro, MacroExecution, MacroStep } from "@shared/types.ts";
 import { emitMacroEvent } from "./macro-events.ts";
 
@@ -143,6 +145,11 @@ export class MacroEngine {
       return;
     }
 
+    if (step.action === "upload_mount" || step.action === "upload_and_run") {
+      await this.executeUploadStep(step, device);
+      return;
+    }
+
     const { method, path } = this.mapStepToRequest(step);
     const url = `http://${device.ip}:${device.port}${path}`;
     const headers: Record<string, string> = {};
@@ -178,9 +185,88 @@ export class MacroEngine {
     }
   }
 
+  /** Execute an upload_mount or upload_and_run step */
+  private async executeUploadStep(
+    step: Extract<MacroStep, { action: "upload_mount" | "upload_and_run" }>,
+    device: Device,
+  ): Promise<void> {
+    const gamesDir = join(process.cwd(), "data", "games");
+    const filePath = join(gamesDir, step.localFile);
+
+    let fileData: Buffer;
+    try {
+      fileData = readFileSync(filePath);
+    } catch {
+      throw new Error(
+        `Step '${step.action}' failed: file not found: ${step.localFile}`,
+      );
+    }
+
+    // Derive image type from extension
+    const lastDot = step.localFile.lastIndexOf(".");
+    const imageType = lastDot !== -1 ? step.localFile.slice(lastDot + 1).toLowerCase() : "";
+
+    const mode = step.mode || "readwrite";
+    let mountUrl = `http://${device.ip}:${device.port}/v1/drives/${step.drive}:mount?mode=${encodeURIComponent(mode)}`;
+    if (imageType) {
+      mountUrl += `&type=${encodeURIComponent(imageType)}`;
+    }
+
+    const headers: Record<string, string> = {
+      "content-type": "application/octet-stream",
+    };
+    if (device.password) headers["X-Password"] = device.password;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), STEP_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(mountUrl, {
+        method: "POST",
+        headers,
+        body: fileData,
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(
+          `Step '${step.action}' failed: HTTP ${res.status}${text ? ` - ${text}` : ""}`,
+        );
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // For upload_and_run, optionally run a PRG from the mounted disk
+    if (step.action === "upload_and_run" && step.runFile) {
+      const runUrl = `http://${device.ip}:${device.port}/v1/runners:run_prg?file=${encodeURIComponent(step.runFile)}`;
+      const runHeaders: Record<string, string> = {};
+      if (device.password) runHeaders["X-Password"] = device.password;
+
+      const runController = new AbortController();
+      const runTimer = setTimeout(() => runController.abort(), STEP_TIMEOUT_MS);
+
+      try {
+        const runRes = await fetch(runUrl, {
+          method: "PUT",
+          headers: runHeaders,
+          signal: runController.signal,
+        });
+        if (!runRes.ok) {
+          const text = await runRes.text().catch(() => "");
+          throw new Error(
+            `Step '${step.action}' run failed: HTTP ${runRes.status}${text ? ` - ${text}` : ""}`,
+          );
+        }
+      } finally {
+        clearTimeout(runTimer);
+      }
+    }
+  }
+
   /** Map a macro step to the corresponding C64U HTTP request */
   mapStepToRequest(
-    step: Exclude<MacroStep, { action: "delay" }>,
+    step: Exclude<MacroStep, { action: "delay" } | { action: "upload_mount" } | { action: "upload_and_run" }>,
   ): { method: string; path: string } {
     switch (step.action) {
       case "reset":
