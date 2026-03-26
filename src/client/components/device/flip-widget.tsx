@@ -28,9 +28,11 @@ export function FlipWidget({ deviceId }: FlipWidgetProps) {
       { id: selectedId, deviceId, direction, slot },
       {
         onSuccess: (data) => {
-          const result = data as { position: number; disk: { label: string } };
-          setCurrentSlot(result.position);
-          addToast(`MOUNTED: ${result.disk.label}`, "success");
+          if ("position" in data && "disk" in data) {
+            setCurrentSlot(data.position as number);
+            const disk = data.disk as { label: string };
+            addToast(`MOUNTED: ${disk.label}`, "success");
+          }
         },
         onError: (err) => addToast(err.message, "error"),
       },
