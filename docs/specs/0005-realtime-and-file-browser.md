@@ -228,21 +228,21 @@ src/client/
   - [ ] Map SSE events to query keys: `drives` → `['devices', id, 'drives']`, `info` → `['devices', id, 'info']`
   - [ ] Auto-reconnect on disconnect with exponential backoff
   - [ ] Integrate into device dashboard from spec 0004 (auto-update without manual refresh)
-- [ ] Implement FTP connection pool and `basic-ftp` integration
-  - [ ] Create `FtpPool` class: per-device pool (1-2 connections), 60s idle timeout, auto-reconnect
-  - [ ] Use device registry for FTP host/password (same credentials as HTTP API)
-  - [ ] Test `basic-ftp` on Bun; document Node.js fallback if needed
-- [ ] Implement file browser API endpoints
-  - [ ] `GET /api/devices/:deviceId/files?path=<dir>` — list directory via FTP with name, type, size, modified, fileType
-  - [ ] `GET /api/devices/:deviceId/files/info?path=<file>` — single file metadata
-  - [ ] File type detection: map extensions (d64, g64, d71, d81, prg, crt, sid, mod, rom, bin) to categories
-  - [ ] Compute `parent` path for breadcrumb navigation
-  - [ ] Cache directory listings server-side with 10s TTL, invalidate on upload/delete, support `?refresh=true`
-- [ ] Implement file upload, download, and delete endpoints
-  - [ ] `POST /api/devices/:deviceId/files/upload?path=<dir>` — multipart upload via FTP
-  - [ ] `GET /api/devices/:deviceId/files/download?path=<file>` — download as binary stream
-  - [ ] `DELETE /api/devices/:deviceId/files?path=<file>` — delete via FTP
-  - [ ] Invalidate directory cache on upload and delete
+- [x] Implement FTP connection pool and `basic-ftp` integration
+  - [x] Create `FtpPool` class: per-device pool (1-2 connections), 60s idle timeout, auto-reconnect
+  - [x] Use device registry for FTP host/password (same credentials as HTTP API)
+  - [x] Test `basic-ftp` on Bun; document Node.js fallback if needed
+- [x] Implement file browser API endpoints
+  - [x] `GET /api/devices/:deviceId/files?path=<dir>` — list directory via FTP with name, type, size, modified, fileType
+  - [x] `GET /api/devices/:deviceId/files/info?path=<file>` — single file metadata
+  - [x] File type detection: map extensions (d64, g64, d71, d81, prg, crt, sid, mod, rom, bin) to categories
+  - [x] Compute `parent` path for breadcrumb navigation
+  - [x] Cache directory listings server-side with 10s TTL, invalidate on upload/delete, support `?refresh=true`
+- [x] Implement file upload, download, and delete endpoints
+  - [x] `POST /api/devices/:deviceId/files/upload?path=<dir>` — multipart upload via FTP
+  - [x] `GET /api/devices/:deviceId/files/download?path=<file>` — download as binary stream
+  - [x] `DELETE /api/devices/:deviceId/files?path=<file>` — delete via FTP
+  - [x] Invalidate directory cache on upload and delete
 - [ ] Build file browser UI component
   - [ ] `C64FileBrowser` component with breadcrumb navigation (clickable path segments)
   - [ ] List view: icon (by file type), name, size, date
