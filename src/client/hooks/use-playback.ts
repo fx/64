@@ -4,16 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type { Playlist, Track, PlaybackState } from "@shared/types.ts";
-
-async function throwOnNotOk(res: Response, fallback: string): Promise<void> {
-  if (res.ok) return;
-  const body = await res.json().catch(() => null);
-  const msg =
-    (body as { error?: string })?.error ||
-    (body as { errors?: string[] })?.errors?.[0] ||
-    fallback;
-  throw new Error(msg);
-}
+import { throwOnNotOk } from "../lib/api.ts";
 
 // ── Playlist CRUD ─────────────────────────────────────
 
@@ -135,50 +126,30 @@ export function usePlayTrack(deviceId: string) {
   });
 }
 
-export function usePlaybackNext(deviceId: string) {
+function usePlaybackAction(deviceId: string, action: string, errorMsg: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<PlaybackState> => {
-      const res = await fetch(`/api/devices/${deviceId}/playback/next`, {
+      const res = await fetch(`/api/devices/${deviceId}/playback/${action}`, {
         method: "POST",
       });
-      await throwOnNotOk(res, "Failed to skip to next");
+      await throwOnNotOk(res, errorMsg);
       return res.json();
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["devices", deviceId, "playback"], data);
     },
   });
+}
+
+export function usePlaybackNext(deviceId: string) {
+  return usePlaybackAction(deviceId, "next", "Failed to skip to next");
 }
 
 export function usePlaybackPrev(deviceId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<PlaybackState> => {
-      const res = await fetch(`/api/devices/${deviceId}/playback/prev`, {
-        method: "POST",
-      });
-      await throwOnNotOk(res, "Failed to skip to previous");
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["devices", deviceId, "playback"], data);
-    },
-  });
+  return usePlaybackAction(deviceId, "prev", "Failed to skip to previous");
 }
 
 export function usePlaybackStop(deviceId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<PlaybackState> => {
-      const res = await fetch(`/api/devices/${deviceId}/playback/stop`, {
-        method: "POST",
-      });
-      await throwOnNotOk(res, "Failed to stop playback");
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["devices", deviceId, "playback"], data);
-    },
-  });
+  return usePlaybackAction(deviceId, "stop", "Failed to stop playback");
 }
