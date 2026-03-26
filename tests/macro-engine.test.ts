@@ -171,7 +171,7 @@ describe("MacroEngine", () => {
         value: "512",
       });
       expect(result.method).toBe("PUT");
-      expect(result.path).toContain("/v1/config/C64/REU%20Size");
+      expect(result.path).toContain("/v1/configs/C64/REU%20Size");
       expect(result.path).toContain("value=512");
     });
   });
@@ -316,6 +316,48 @@ describe("MacroEngine", () => {
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("failed");
       expect(updated.error).toContain("Network failure");
+    });
+
+    it("fails on C64U application-level errors in JSON response", async () => {
+      globalThis.fetch = (() => {
+        const body = JSON.stringify({ errors: ["Drive not ready", "Disk full"] });
+        return Promise.resolve(
+          new Response(body, {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }) as any;
+
+      const macro = makeMacro([{ action: "reset" }]);
+      const device = makeDevice();
+      const exec = await engine.execute(macro, device);
+      await new Promise((r) => setTimeout(r, 50));
+
+      const updated = engine.getExecution(exec.id)!;
+      expect(updated.status).toBe("failed");
+      expect(updated.error).toContain("Drive not ready");
+      expect(updated.error).toContain("Disk full");
+    });
+
+    it("succeeds when JSON response has empty errors array", async () => {
+      globalThis.fetch = (() => {
+        const body = JSON.stringify({ errors: [] });
+        return Promise.resolve(
+          new Response(body, {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }) as any;
+
+      const macro = makeMacro([{ action: "reset" }]);
+      const device = makeDevice();
+      const exec = await engine.execute(macro, device);
+      await new Promise((r) => setTimeout(r, 50));
+
+      const updated = engine.getExecution(exec.id)!;
+      expect(updated.status).toBe("completed");
     });
 
     it("constructs correct URL from device IP and port", async () => {

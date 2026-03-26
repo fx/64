@@ -63,7 +63,7 @@ export class MacroEngine {
       const step = macro.steps[i]!;
 
       try {
-        await this.executeStep(step, device);
+        await this.executeStep(step, device, execId);
       } catch (err) {
         execution.status = "failed";
         execution.error =
@@ -80,9 +80,21 @@ export class MacroEngine {
     this.abortFlags.delete(execId);
   }
 
-  private async executeStep(step: MacroStep, device: Device): Promise<void> {
+  private async executeStep(
+    step: MacroStep,
+    device: Device,
+    execId: string,
+  ): Promise<void> {
     if (step.action === "delay") {
-      await new Promise((resolve) => setTimeout(resolve, step.ms));
+      // Make delay abortable by checking abort flag periodically
+      const interval = 100;
+      let elapsed = 0;
+      while (elapsed < step.ms) {
+        if (this.abortFlags.get(execId)) return;
+        const wait = Math.min(interval, step.ms - elapsed);
+        await new Promise((resolve) => setTimeout(resolve, wait));
+        elapsed += wait;
+      }
       return;
     }
 
@@ -105,6 +117,16 @@ export class MacroEngine {
         throw new Error(
           `Step '${step.action}' failed: HTTP ${res.status}${text ? ` - ${text}` : ""}`,
         );
+      }
+      // Check C64U application-level errors (HTTP 200 but errors array)
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const body = await res.json().catch(() => null) as { errors?: string[] } | null;
+        if (body?.errors?.length) {
+          throw new Error(
+            `Step '${step.action}' failed: ${body.errors.join("; ")}`,
+          );
+        }
       }
     } finally {
       clearTimeout(timer);
@@ -173,7 +195,7 @@ export class MacroEngine {
       case "set_config":
         return {
           method: "PUT",
-          path: `/v1/config/${encodeURIComponent(step.category)}/${encodeURIComponent(step.item)}?value=${encodeURIComponent(step.value)}`,
+          path: `/v1/configs/${encodeURIComponent(step.category)}/${encodeURIComponent(step.item)}?value=${encodeURIComponent(step.value)}`,
         };
       default:
         throw new Error(
