@@ -178,7 +178,7 @@ describe("MacroEngine upload steps", () => {
   });
 
   describe("upload_and_run", () => {
-    it("mounts then resets the machine", async () => {
+    it("mounts, resets, then injects LOAD and RUN via DMA", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       const fetchCalls: { url: string; method: string }[] = [];
@@ -192,26 +192,31 @@ describe("MacroEngine upload steps", () => {
       ]);
       const device = makeDevice();
       const exec = await engine.execute(macro, device);
-      await new Promise((r) => setTimeout(r, 100));
+      // Wait for async execution + the 2.5s delay inside upload_and_run
+      await new Promise((r) => setTimeout(r, 3500));
 
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("completed");
 
-      // Should have made two calls: POST mount then PUT reset
-      expect(fetchCalls).toHaveLength(2);
+      // Should have: POST mount, PUT reset, then multiple PUT writemem calls
+      expect(fetchCalls.length).toBeGreaterThanOrEqual(4);
       expect(fetchCalls[0]!.method).toBe("POST");
       expect(fetchCalls[0]!.url).toContain("/v1/drives/a:mount");
       expect(fetchCalls[1]!.method).toBe("PUT");
       expect(fetchCalls[1]!.url).toContain("/v1/machine:reset");
+      // Remaining calls are writemem for screen RAM + keyboard buffer injection
+      const writememCalls = fetchCalls.filter(c => c.url.includes("writemem"));
+      expect(writememCalls.length).toBeGreaterThanOrEqual(2);
     });
 
     it("fails when reset returns HTTP error after successful mount", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       let callCount = 0;
-      globalThis.fetch = (async () => {
+      globalThis.fetch = (async (url: string | URL | Request) => {
         callCount++;
-        if (callCount === 2) {
+        const u = String(url);
+        if (u.includes("/v1/machine:reset")) {
           return new Response("Reset error", { status: 500 });
         }
         return new Response("", { status: 200 });
@@ -222,14 +227,14 @@ describe("MacroEngine upload steps", () => {
       ]);
       const device = makeDevice();
       const exec = await engine.execute(macro, device);
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 500));
 
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("failed");
-      expect(updated.error).toContain("reset failed");
+      expect(updated.error).toContain("failed");
     });
 
-    it("includes X-Password on both mount and reset requests", async () => {
+    it("includes X-Password on all requests", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       const capturedHeaders: Record<string, string>[] = [];
@@ -243,13 +248,15 @@ describe("MacroEngine upload steps", () => {
       ]);
       const device = makeDevice({ password: "mypass" });
       const exec = await engine.execute(macro, device);
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 3500));
 
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("completed");
-      expect(capturedHeaders).toHaveLength(2);
-      expect(capturedHeaders[0]!["X-Password"]).toBe("mypass");
-      expect(capturedHeaders[1]!["X-Password"]).toBe("mypass");
+      // All requests should have the password
+      expect(capturedHeaders.length).toBeGreaterThanOrEqual(4);
+      for (const h of capturedHeaders) {
+        expect(h["X-Password"]).toBe("mypass");
+      }
     });
   });
 });

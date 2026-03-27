@@ -256,33 +256,70 @@ export class MacroEngine {
       clearTimeout(timer);
     }
 
-    // For upload_and_run: after mounting, reset the machine.
-    // The C64 does NOT auto-run from disk — the user must type LOAD"*",8,1 and RUN.
-    // The reset puts the machine in a clean state ready for manual loading.
-    // Future improvement: use DMA keyboard injection if the C64U API supports it.
+    // For upload_and_run: reset the machine, wait for BASIC to boot,
+    // then inject LOAD"*",8,1 + RUN into the keyboard buffer via DMA writemem.
+    //
+    // The C64 keyboard buffer is at $0277 (10 bytes max), length at $C6.
+    // LOAD"*",8,1\r is 13 chars — too long for the 10-byte buffer.
+    // Trick: write the text to screen RAM at $0400 line 3 (after BASIC prompt),
+    // position the cursor there, then stuff two CRs into the keyboard buffer
+    // so the C64 reads both lines from screen and executes them.
     if (step.action === "upload_and_run") {
-      const resetUrl = `http://${device.ip}:${device.port}/v1/machine:reset`;
-      const resetHeaders: Record<string, string> = {};
-      if (device.password) resetHeaders["X-Password"] = device.password;
+      const baseUrl = `http://${device.ip}:${device.port}`;
+      const hdrs: Record<string, string> = {};
+      if (device.password) hdrs["X-Password"] = device.password;
 
-      const resetController = new AbortController();
-      const resetTimer = setTimeout(() => resetController.abort(), STEP_TIMEOUT_MS);
+      const dmaFetch = async (path: string, method = "PUT") => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), STEP_TIMEOUT_MS);
+        try {
+          const r = await fetch(`${baseUrl}${path}`, { method, headers: hdrs, signal: ctrl.signal });
+          if (!r.ok) {
+            const text = await r.text().catch(() => "");
+            throw new Error(`${step.action} failed: HTTP ${r.status}${text ? ` - ${text}` : ""}`);
+          }
+        } finally { clearTimeout(t); }
+      };
 
-      try {
-        const resetRes = await fetch(resetUrl, {
-          method: "PUT",
-          headers: resetHeaders,
-          signal: resetController.signal,
-        });
-        if (!resetRes.ok) {
-          const text = await resetRes.text().catch(() => "");
-          throw new Error(
-            `Step '${step.action}' reset failed: HTTP ${resetRes.status}${text ? ` - ${text}` : ""}`,
-          );
-        }
-      } finally {
-        clearTimeout(resetTimer);
-      }
+      // 1. Reset the machine
+      await dmaFetch("/v1/machine:reset");
+
+      // 2. Wait for BASIC to boot (~2 seconds)
+      await new Promise((r) => setTimeout(r, 2500));
+
+      // 3. Write "LOAD" + chr$(34) + "*" + chr$(34) + ",8,1" to screen line 5 ($0400 + 5*40 = $04C8)
+      //    and "RUN" to screen line 6 ($04F0)
+      //    Screen codes: L=12 O=15 A=1 D=4 "=34→screen code 34 is not right...
+      //    Actually for screen codes: letters are at screen code = PETSCII - 64 for uppercase
+      //    L=76-64=12, O=79-64=15, A=65-64=1, D=68-64=4
+      //    "*" = 42-32=10... no. Screen codes for special chars:
+      //    " = screen code 34 (same as PETSCII for punctuation 32-63)
+      //    * = screen code 42 (same range), , = 44, 8 = 56-48=8...
+      //    Numbers 0-9: screen code = PETSCII - 48 + 48 = same (48-57 → 48-57)...
+      //    Actually for $20-$3F range, screen code = PETSCII code. So " * , 8 1 are same.
+      //    For $40-$5F (uppercase letters), screen code = PETSCII - 64.
+      //    L=12, O=15, A=1, D=4, R=18, U=21, N=14
+      //    LOAD"*",8,1 → screen codes: 12,15,1,4, 34,42,34, 44,56,44,49
+      //    RUN → screen codes: 18,21,14
+      const loadLine = [12,15,1,4, 34,42,34, 44,56,44,49]; // LOAD"*",8,1
+      const runLine = [18,21,14]; // RUN
+      const loadHex = loadLine.map(b => b.toString(16).padStart(2, '0')).join('');
+      const runHex = runLine.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // Write LOAD"*",8,1 at screen line 5 ($04C8)
+      await dmaFetch(`/v1/machine:writemem?address=04C8&data=${loadHex}`);
+      // Write RUN at screen line 6 ($04F0)
+      await dmaFetch(`/v1/machine:writemem?address=04F0&data=${runHex}`);
+
+      // 4. Position cursor at line 5 col 0 and stuff 2x RETURN into keyboard buffer
+      //    Cursor row is at $D6, cursor column at $D3 (these are zero page locations)
+      //    $D6 = cursor row = 5, $D3 = cursor column = 0
+      await dmaFetch(`/v1/machine:writemem?address=D6&data=05`);
+      await dmaFetch(`/v1/machine:writemem?address=D3&data=00`);
+
+      // Put 2x CR (PETSCII 13 = 0x0D) in keyboard buffer at $0277, set length at $C6 = 2
+      await dmaFetch(`/v1/machine:writemem?address=0277&data=0D0D`);
+      await dmaFetch(`/v1/machine:writemem?address=C6&data=02`);
     }
   }
 
