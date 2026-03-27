@@ -210,92 +210,74 @@ export class MacroEngine {
       );
     }
 
-    // Derive image type from extension
+    // Derive file type from extension
     const lastDot = step.localFile.lastIndexOf(".");
-    const imageType = lastDot !== -1 ? step.localFile.slice(lastDot + 1).toLowerCase() : "";
+    const fileExt = lastDot !== -1 ? step.localFile.slice(lastDot + 1).toLowerCase() : "";
+    const isPrg = fileExt === "prg";
+    const isDiskImage = ["d64", "d71", "d81", "g64", "g71"].includes(fileExt);
 
-    const VALID_MODES = new Set(["readwrite", "readonly", "unlinked"]);
-    const mode = step.mode && VALID_MODES.has(step.mode) ? step.mode : "readwrite";
-    let mountUrl = `http://${device.ip}:${device.port}/v1/drives/${step.drive}:mount?mode=${encodeURIComponent(mode)}`;
-    if (imageType) {
-      mountUrl += `&type=${encodeURIComponent(imageType)}`;
-    }
-
+    const baseUrl = `http://${device.ip}:${device.port}`;
     const headers: Record<string, string> = {
       "content-type": "application/octet-stream",
     };
     if (device.password) headers["X-Password"] = device.password;
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), STEP_TIMEOUT_MS);
-
-    try {
-      const res = await fetch(mountUrl, {
-        method: "POST",
-        headers,
-        body: fileData,
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(
-          `Step '${step.action}' failed: HTTP ${res.status}${text ? ` - ${text}` : ""}`,
-        );
-      }
-      // Check C64U application-level errors (HTTP 200 but errors array)
-      const ct = res.headers.get("content-type") || "";
-      if (ct.includes("application/json")) {
-        const body = await res.json().catch(() => null) as { errors?: string[] } | null;
-        if (body?.errors?.length) {
-          throw new Error(
-            `Step '${step.action}' failed: ${body.errors.join("; ")}`,
-          );
+    const doFetch = async (url: string, method: string, body?: Buffer) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), STEP_TIMEOUT_MS);
+      try {
+        const r = await fetch(url, { method, headers, body, signal: ctrl.signal });
+        if (!r.ok) {
+          const text = await r.text().catch(() => "");
+          throw new Error(`Step '${step.action}' failed: HTTP ${r.status}${text ? ` - ${text}` : ""}`);
         }
-      }
-    } finally {
-      clearTimeout(timer);
+        const ct = r.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const json = await r.json().catch(() => null) as { errors?: string[] } | null;
+          if (json?.errors?.length) {
+            throw new Error(`Step '${step.action}' failed: ${json.errors.join("; ")}`);
+          }
+        }
+      } finally { clearTimeout(t); }
+    };
+
+    if (isPrg) {
+      // PRG files: use POST /v1/runners:run_prg (DMA load + auto-run) for upload_and_run,
+      // or POST /v1/runners:load_prg (DMA load only) for upload_mount
+      const endpoint = step.action === "upload_and_run" ? "run_prg" : "load_prg";
+      await doFetch(`${baseUrl}/v1/runners:${endpoint}`, "POST", fileData);
+      // run_prg handles everything — no keyboard injection needed for PRGs
+      return;
     }
 
-    // For upload_and_run: reset, inject LOAD"*",8,1 via keyboard buffer,
-    // wait for loading to finish, then inject RUN.
+    if (!isDiskImage) {
+      throw new Error(`Step '${step.action}' failed: unsupported file type '.${fileExt}'`);
+    }
+
+    // Disk images: mount via POST /v1/drives/<drive>:mount
+    const VALID_MODES = new Set(["readwrite", "readonly", "unlinked"]);
+    const mode = step.mode && VALID_MODES.has(step.mode) ? step.mode : "readwrite";
+    let mountUrl = `${baseUrl}/v1/drives/${step.drive}:mount?mode=${encodeURIComponent(mode)}`;
+    mountUrl += `&type=${encodeURIComponent(fileExt)}`;
+    await doFetch(mountUrl, "POST", fileData);
+
+    // For upload_and_run with disk images: reset, inject LOAD"*",8,1 via keyboard
+    // buffer, wait for loading, then inject RUN.
     //
-    // The C64 keyboard buffer is at $0277 (10 bytes max), length at $C6.
-    // LOAD"*",8,1 + CR = 13 bytes — too long for the 10-byte buffer.
-    //
-    // Trick: use BASIC keyword abbreviation. The C64 accepts the first letter
-    // plus the SHIFTED second letter as a keyword shortcut:
-    //   L + SHIFT-O = LOAD (PETSCII: $4C $CF)
-    // This gives us: lO"*",8,1 + CR = exactly 10 bytes!
-    //
-    // PETSCII bytes: $4C $CF $22 $2A $22 $2C $38 $2C $31 $0D
-    // RUN + CR: $52 $55 $4E $0D = 4 bytes
+    // Uses BASIC keyword abbreviation: L + SHIFT-O = LOAD ($4C $CF)
+    // LOAD"*",8,1 + CR = exactly 10 bytes (keyboard buffer max).
+    // RUN + CR = 4 bytes.
     if (step.action === "upload_and_run") {
-      const baseUrl = `http://${device.ip}:${device.port}`;
-      const hdrs: Record<string, string> = {};
-      if (device.password) hdrs["X-Password"] = device.password;
-
-      const dmaFetch = async (path: string, method = "PUT") => {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), STEP_TIMEOUT_MS);
-        try {
-          const r = await fetch(`${baseUrl}${path}`, { method, headers: hdrs, signal: ctrl.signal });
-          if (!r.ok) {
-            const text = await r.text().catch(() => "");
-            throw new Error(`${step.action} failed: HTTP ${r.status}${text ? ` - ${text}` : ""}`);
-          }
-        } finally { clearTimeout(t); }
-      };
-
       // Helper: stuff PETSCII bytes into keyboard buffer ($0277) and set length ($C6)
       const stuffKeyboard = async (petsciiBytes: number[]) => {
         const hex = petsciiBytes.map(b => b.toString(16).padStart(2, '0')).join('');
         const len = petsciiBytes.length.toString(16).padStart(2, '0');
-        await dmaFetch(`/v1/machine:writemem?address=0277&data=${hex}`);
-        await dmaFetch(`/v1/machine:writemem?address=C6&data=${len}`);
+        await doFetch(`${baseUrl}/v1/machine:writemem?address=0277&data=${hex}`, "PUT");
+        await doFetch(`${baseUrl}/v1/machine:writemem?address=C6&data=${len}`, "PUT");
       };
 
       // 1. Reset the machine
-      await dmaFetch("/v1/machine:reset");
+      await doFetch(`${baseUrl}/v1/machine:reset`, "PUT");
 
       // 2. Wait for BASIC to boot
       await new Promise((r) => setTimeout(r, 2500));
@@ -335,7 +317,7 @@ export class MacroEngine {
           const t = setTimeout(() => ctrl.abort(), 5000);
           try {
             const r = await fetch(`${baseUrl}/v1/machine:readmem?address=0400&length=1000`, {
-              headers: hdrs, signal: ctrl.signal,
+              headers, signal: ctrl.signal,
             });
             if (r.ok) {
               const buf = new Uint8Array(await r.arrayBuffer());
