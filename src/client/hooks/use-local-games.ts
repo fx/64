@@ -1,20 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, getErrorMessage } from "../lib/api.ts";
 
-export interface GameFile {
+export interface LibraryFile {
   name: string;
   size: number;
   modified: string;
+  type: string;
 }
 
-export function useLocalGames() {
+export function useLibrary() {
   return useQuery({
-    queryKey: ["localGames"],
+    queryKey: ["library"],
     queryFn: async () => {
-      const res = await api.games.$get();
-      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch games"));
+      const res = await api.library.$get();
+      if (!res.ok) throw new Error(await getErrorMessage(res, "Failed to fetch library"));
       const data = await res.json();
-      return data.files as GameFile[];
+      return data.files as LibraryFile[];
     },
   });
 }

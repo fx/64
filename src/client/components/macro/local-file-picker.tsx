@@ -1,4 +1,4 @@
-import { useLocalGames } from "../../hooks/use-local-games.ts";
+import { useLibrary } from "../../hooks/use-local-games.ts";
 import { C64Box } from "../ui/c64-box.tsx";
 import { C64Button } from "../ui/c64-button.tsx";
 
@@ -8,10 +8,10 @@ interface LocalFilePickerProps {
 }
 
 export function LocalFilePicker({ onSelect, onClose }: LocalFilePickerProps) {
-  const { data: files, isLoading, error } = useLocalGames();
+  const { data: files, isLoading, error } = useLibrary();
 
   return (
-    <C64Box title="LOCAL GAMES">
+    <C64Box title="LIBRARY">
       <div className="flex flex-col gap-[0.25em]">
         {isLoading && (
           <p className="text-c64-15-light-grey">LOADING...</p>
@@ -22,7 +22,7 @@ export function LocalFilePicker({ onSelect, onClose }: LocalFilePickerProps) {
           </p>
         )}
         {files && files.length === 0 && (
-          <p className="text-c64-15-light-grey">NO DISK IMAGES IN DATA/GAMES/</p>
+          <p className="text-c64-15-light-grey">NO FILES IN DATA/LIBRARY/</p>
         )}
         {files && files.length > 0 && (
           <div className="flex flex-col">

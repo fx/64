@@ -44,7 +44,7 @@ describe("MacroEngine upload steps", () => {
   beforeEach(() => {
     engine = new MacroEngine();
     tempDir = join(tmpdir(), `macro-upload-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(join(tempDir, "data", "games"), { recursive: true });
+    mkdirSync(join(tempDir, "data", "library"), { recursive: true });
     originalCwd = process.cwd;
     process.cwd = () => tempDir;
   });
@@ -60,7 +60,7 @@ describe("MacroEngine upload steps", () => {
   describe("upload_mount", () => {
     it("reads file and POSTs binary to device mount endpoint", async () => {
       const fileContent = Buffer.from("fake-d64-content");
-      writeFileSync(join(tempDir, "data", "games", "test.d64"), fileContent);
+      writeFileSync(join(tempDir, "data", "library", "test.d64"), fileContent);
 
       let capturedUrl = "";
       let capturedMethod = "";
@@ -96,7 +96,7 @@ describe("MacroEngine upload steps", () => {
     });
 
     it("uses specified drive and mode", async () => {
-      writeFileSync(join(tempDir, "data", "games", "game.d81"), Buffer.alloc(10));
+      writeFileSync(join(tempDir, "data", "library", "game.d81"), Buffer.alloc(10));
 
       let capturedUrl = "";
       globalThis.fetch = (async (url: string | URL | Request) => {
@@ -119,7 +119,7 @@ describe("MacroEngine upload steps", () => {
     });
 
     it("includes X-Password header when device has password", async () => {
-      writeFileSync(join(tempDir, "data", "games", "test.d64"), Buffer.alloc(10));
+      writeFileSync(join(tempDir, "data", "library", "test.d64"), Buffer.alloc(10));
 
       let capturedHeaders: Record<string, string> = {};
       globalThis.fetch = (async (_url: string | URL | Request, opts?: any) => {
@@ -158,7 +158,7 @@ describe("MacroEngine upload steps", () => {
     });
 
     it("fails when device returns HTTP error", async () => {
-      writeFileSync(join(tempDir, "data", "games", "test.d64"), Buffer.alloc(10));
+      writeFileSync(join(tempDir, "data", "library", "test.d64"), Buffer.alloc(10));
 
       globalThis.fetch = (async () => {
         return new Response("Drive error", { status: 500 });
@@ -179,7 +179,7 @@ describe("MacroEngine upload steps", () => {
 
   describe("upload_and_run", () => {
     it("mounts, resets, injects LOAD, polls for READY, then injects RUN", { timeout: 15000 }, async () => {
-      writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
+      writeFileSync(join(tempDir, "data", "library", "game.d64"), Buffer.alloc(10));
 
       // Build a fake screen with "READY." at line 8 (offset 320)
       // Screen codes: R=18 E=5 A=1 D=4 Y=25 .=46
@@ -221,7 +221,7 @@ describe("MacroEngine upload steps", () => {
     });
 
     it("fails when reset returns HTTP error after successful mount", async () => {
-      writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
+      writeFileSync(join(tempDir, "data", "library", "game.d64"), Buffer.alloc(10));
 
       let callCount = 0;
       globalThis.fetch = (async (url: string | URL | Request) => {
@@ -246,7 +246,7 @@ describe("MacroEngine upload steps", () => {
     });
 
     it("includes X-Password on all requests", { timeout: 15000 }, async () => {
-      writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
+      writeFileSync(join(tempDir, "data", "library", "game.d64"), Buffer.alloc(10));
 
       const fakeScreen = new Uint8Array(1000).fill(0x20);
       fakeScreen.set([18, 5, 1, 4, 25, 46], 320); // READY.

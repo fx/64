@@ -5,29 +5,29 @@ import { tmpdir } from "node:os";
 import { Hono } from "hono";
 
 // We need to override the GAMES_DIR used by the route. The route uses
-// process.cwd() + "data/games", so we'll test via the Hono app after
+// process.cwd() + "data/library", so we'll test via the Hono app after
 // setting up a temp directory and patching process.cwd.
 
-function makeTempGamesDir(): string {
-  const dir = join(tmpdir(), `games-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(join(dir, "data", "games"), { recursive: true });
+function makeTempLibraryDir(): string {
+  const dir = join(tmpdir(), `library-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(join(dir, "data", "library"), { recursive: true });
   return dir;
 }
 
-describe("GET /api/games", () => {
+describe("GET /api/library", () => {
   let tempDir: string;
   let originalCwd: () => string;
   let app: Hono;
 
   beforeEach(async () => {
-    tempDir = makeTempGamesDir();
+    tempDir = makeTempLibraryDir();
     originalCwd = process.cwd;
     process.cwd = () => tempDir;
 
     // Re-import the module fresh so it picks up the new cwd
-    const mod = await import("../src/server/routes/games.ts");
-    const games = mod.default;
-    app = new Hono().basePath("/api").route("/", games);
+    const mod = await import("../src/server/routes/library.ts");
+    const library = mod.default;
+    app = new Hono().basePath("/api").route("/", library);
   });
 
   afterEach(() => {
@@ -38,19 +38,19 @@ describe("GET /api/games", () => {
   });
 
   it("returns empty files array for empty directory", async () => {
-    const res = await app.request("/api/games");
+    const res = await app.request("/api/library");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ files: [] });
   });
 
   it("returns disk image files sorted alphabetically", async () => {
-    const gamesDir = join(tempDir, "data", "games");
-    writeFileSync(join(gamesDir, "zork.d64"), Buffer.alloc(174848));
-    writeFileSync(join(gamesDir, "archon.d64"), Buffer.alloc(174848));
-    writeFileSync(join(gamesDir, "maniac.d81"), Buffer.alloc(819200));
+    const libraryDir = join(tempDir, "data", "library");
+    writeFileSync(join(libraryDir, "zork.d64"), Buffer.alloc(174848));
+    writeFileSync(join(libraryDir, "archon.d64"), Buffer.alloc(174848));
+    writeFileSync(join(libraryDir, "maniac.d81"), Buffer.alloc(819200));
 
-    const res = await app.request("/api/games");
+    const res = await app.request("/api/library");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { files: { name: string; size: number; modified: string }[] };
     expect(body.files).toHaveLength(3);
@@ -64,47 +64,47 @@ describe("GET /api/games", () => {
   });
 
   it("only returns files with valid disk image extensions", async () => {
-    const gamesDir = join(tempDir, "data", "games");
-    writeFileSync(join(gamesDir, "game.d64"), Buffer.alloc(100));
-    writeFileSync(join(gamesDir, "game.d71"), Buffer.alloc(100));
-    writeFileSync(join(gamesDir, "game.d81"), Buffer.alloc(100));
-    writeFileSync(join(gamesDir, "game.g64"), Buffer.alloc(100));
-    writeFileSync(join(gamesDir, "game.g71"), Buffer.alloc(100));
-    writeFileSync(join(gamesDir, "readme.txt"), Buffer.alloc(100));
-    writeFileSync(join(gamesDir, "image.png"), Buffer.alloc(100));
-    writeFileSync(join(gamesDir, "program.prg"), Buffer.alloc(100));
+    const libraryDir = join(tempDir, "data", "library");
+    writeFileSync(join(libraryDir, "game.d64"), Buffer.alloc(100));
+    writeFileSync(join(libraryDir, "game.d71"), Buffer.alloc(100));
+    writeFileSync(join(libraryDir, "game.d81"), Buffer.alloc(100));
+    writeFileSync(join(libraryDir, "game.g64"), Buffer.alloc(100));
+    writeFileSync(join(libraryDir, "game.g71"), Buffer.alloc(100));
+    writeFileSync(join(libraryDir, "readme.txt"), Buffer.alloc(100));
+    writeFileSync(join(libraryDir, "image.png"), Buffer.alloc(100));
+    writeFileSync(join(libraryDir, "program.prg"), Buffer.alloc(100));
 
-    const res = await app.request("/api/games");
+    const res = await app.request("/api/library");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { files: { name: string }[] };
-    expect(body.files).toHaveLength(5);
+    expect(body.files).toHaveLength(6);
     const names = body.files.map((f) => f.name);
     expect(names).toContain("game.d64");
     expect(names).toContain("game.d71");
     expect(names).toContain("game.d81");
     expect(names).toContain("game.g64");
     expect(names).toContain("game.g71");
+    expect(names).toContain("program.prg");
     expect(names).not.toContain("readme.txt");
     expect(names).not.toContain("image.png");
-    expect(names).not.toContain("program.prg");
   });
 
-  it("creates data/games directory if it does not exist", async () => {
-    // Remove the games directory
-    rmSync(join(tempDir, "data", "games"), { recursive: true, force: true });
-    expect(existsSync(join(tempDir, "data", "games"))).toBe(false);
+  it("creates data/library directory if it does not exist", async () => {
+    // Remove the library directory
+    rmSync(join(tempDir, "data", "library"), { recursive: true, force: true });
+    expect(existsSync(join(tempDir, "data", "library"))).toBe(false);
 
-    const res = await app.request("/api/games");
+    const res = await app.request("/api/library");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ files: [] });
 
     // Directory should now exist
-    expect(existsSync(join(tempDir, "data", "games"))).toBe(true);
+    expect(existsSync(join(tempDir, "data", "library"))).toBe(true);
   });
 
   it("returns application/json content type", async () => {
-    const res = await app.request("/api/games");
+    const res = await app.request("/api/library");
     expect(res.headers.get("content-type")).toContain("application/json");
   });
 });

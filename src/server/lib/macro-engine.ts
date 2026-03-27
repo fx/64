@@ -190,7 +190,7 @@ export class MacroEngine {
     step: Extract<MacroStep, { action: "upload_mount" | "upload_and_run" }>,
     device: Device,
   ): Promise<void> {
-    const gamesDir = join(process.cwd(), "data", "games");
+    const libraryDir = join(process.cwd(), "data", "library");
 
     // Sanitize localFile to prevent path traversal
     const safeName = basename(step.localFile);
@@ -199,7 +199,7 @@ export class MacroEngine {
         `Step '${step.action}' failed: invalid file name: ${step.localFile}`,
       );
     }
-    const filePath = join(gamesDir, safeName);
+    const filePath = join(libraryDir, safeName);
 
     let fileData: Buffer;
     try {
