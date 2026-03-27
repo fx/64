@@ -256,16 +256,19 @@ export class MacroEngine {
       clearTimeout(timer);
     }
 
-    // For upload_and_run: reset, inject LOAD"*",8,1 via DMA, wait for
-    // loading to finish, then inject RUN.
+    // For upload_and_run: reset, inject LOAD"*",8,1 via keyboard buffer,
+    // wait for loading to finish, then inject RUN.
     //
-    // Uses the C64 screen editor trick: write command text to screen RAM,
-    // position cursor there, stuff CR into keyboard buffer. The C64 reads
-    // the line from screen and executes it.
+    // The C64 keyboard buffer is at $0277 (10 bytes max), length at $C6.
+    // LOAD"*",8,1 + CR = 13 bytes — too long for the 10-byte buffer.
     //
-    // Screen codes: uppercase letters = PETSCII - 64, punctuation/digits = same as PETSCII.
-    // Keyboard buffer: $0277 (10 bytes), buffer length: $C6.
-    // Cursor position: row $D6, column $D3.
+    // Trick: use BASIC keyword abbreviation. The C64 accepts the first letter
+    // plus the SHIFTED second letter as a keyword shortcut:
+    //   L + SHIFT-O = LOAD (PETSCII: $4C $CF)
+    // This gives us: lO"*",8,1 + CR = exactly 10 bytes!
+    //
+    // PETSCII bytes: $4C $CF $22 $2A $22 $2C $38 $2C $31 $0D
+    // RUN + CR: $52 $55 $4E $0D = 4 bytes
     if (step.action === "upload_and_run") {
       const baseUrl = `http://${device.ip}:${device.port}`;
       const hdrs: Record<string, string> = {};
@@ -283,22 +286,13 @@ export class MacroEngine {
         } finally { clearTimeout(t); }
       };
 
-      // Helper: write text to screen RAM and trigger execution via keyboard buffer CR
-      const injectScreenLine = async (screenAddr: string, screenCodes: number[], cursorRow: number) => {
-        const hex = screenCodes.map(b => b.toString(16).padStart(2, '0')).join('');
-        await dmaFetch(`/v1/machine:writemem?address=${screenAddr}&data=${hex}`);
-        // Position cursor at start of that line
-        await dmaFetch(`/v1/machine:writemem?address=D6&data=${cursorRow.toString(16).padStart(2, '0')}`);
-        await dmaFetch(`/v1/machine:writemem?address=D3&data=00`);
-        // Stuff 1x CR into keyboard buffer to execute the line
-        await dmaFetch(`/v1/machine:writemem?address=0277&data=0D`);
-        await dmaFetch(`/v1/machine:writemem?address=C6&data=01`);
+      // Helper: stuff PETSCII bytes into keyboard buffer ($0277) and set length ($C6)
+      const stuffKeyboard = async (petsciiBytes: number[]) => {
+        const hex = petsciiBytes.map(b => b.toString(16).padStart(2, '0')).join('');
+        const len = petsciiBytes.length.toString(16).padStart(2, '0');
+        await dmaFetch(`/v1/machine:writemem?address=0277&data=${hex}`);
+        await dmaFetch(`/v1/machine:writemem?address=C6&data=${len}`);
       };
-
-      // LOAD"*",8,1 screen codes: L=12 O=15 A=1 D=4 "=34 *=42 "=34 ,=44 8=56 ,=44 1=49
-      const loadCodes = [12, 15, 1, 4, 34, 42, 34, 44, 56, 44, 49];
-      // RUN screen codes: R=18 U=21 N=14
-      const runCodes = [18, 21, 14];
 
       // 1. Reset the machine
       await dmaFetch("/v1/machine:reset");
@@ -306,20 +300,17 @@ export class MacroEngine {
       // 2. Wait for BASIC to boot
       await new Promise((r) => setTimeout(r, 2500));
 
-      // 3. Inject LOAD"*",8,1 at screen line 5 ($04C8) and press ENTER
-      await injectScreenLine("04C8", loadCodes, 5);
+      // 3. Stuff LOAD"*",8,1 + CR into keyboard buffer (abbreviated form, 10 bytes)
+      //    L=$4C, SHIFT-O=$CF, "=$22, *=$2A, ,=$2C, 8=$38, 1=$31, CR=$0D
+      await stuffKeyboard([0x4C, 0xCF, 0x22, 0x2A, 0x22, 0x2C, 0x38, 0x2C, 0x31, 0x0D]);
 
-      // 4. Wait for LOAD to complete — disk loading takes time.
-      //    Poll $96 (BASIC status) or just use a generous fixed delay.
-      //    Most single-file D64 loads take 5-20 seconds on a 1541.
-      //    We poll: when the keyboard buffer length ($C6) is 0 AND
-      //    the BASIC "ready" prompt appears, LOAD is done.
-      //    Simpler: wait 15 seconds as a safe default.
-      await new Promise((r) => setTimeout(r, 15000));
+      // 4. Wait for LOAD to complete
+      //    1541 loading typically takes 10-30 seconds depending on file size.
+      await new Promise((r) => setTimeout(r, 20000));
 
-      // 5. Inject RUN at screen line 7 ($0518) and press ENTER
-      //    (LOAD prints "SEARCHING..." and "LOADING..." and "READY." which takes ~3 lines)
-      await injectScreenLine("0518", runCodes, 7);
+      // 5. Stuff RUN + CR into keyboard buffer (4 bytes)
+      //    R=$52, U=$55, N=$4E, CR=$0D
+      await stuffKeyboard([0x52, 0x55, 0x4E, 0x0D]);
     }
   }
 
