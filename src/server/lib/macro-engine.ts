@@ -304,9 +304,59 @@ export class MacroEngine {
       //    L=$4C, SHIFT-O=$CF, "=$22, *=$2A, ,=$2C, 8=$38, 1=$31, CR=$0D
       await stuffKeyboard([0x4C, 0xCF, 0x22, 0x2A, 0x22, 0x2C, 0x38, 0x2C, 0x31, 0x0D]);
 
-      // 4. Wait for LOAD to complete
-      //    1541 loading typically takes 10-30 seconds depending on file size.
-      await new Promise((r) => setTimeout(r, 20000));
+      // 4. Wait for LOAD to complete by polling screen RAM for "READY."
+      //    After LOAD finishes, BASIC prints "READY." to the screen.
+      //    Screen codes for READY.: R=18 E=5 A=1 D=4 Y=25 .=46
+      //    We read screen RAM ($0400, 1000 bytes) every second and scan for that sequence.
+      //    The first "READY." is from boot — we need to see it appear AFTER LOAD starts,
+      //    so we skip the first 5 seconds (LOAD prints SEARCHING.../LOADING... first),
+      //    then poll until we see READY. or timeout after 60 seconds.
+      const readyScreenCodes = [18, 5, 1, 4, 25, 46]; // R E A D Y .
+
+      const findReady = (screenData: Uint8Array): boolean => {
+        for (let i = 0; i <= screenData.length - readyScreenCodes.length; i++) {
+          let match = true;
+          for (let j = 0; j < readyScreenCodes.length; j++) {
+            if (screenData[i + j] !== readyScreenCodes[j]) { match = false; break; }
+          }
+          if (match) return true;
+        }
+        return false;
+      };
+
+      // Wait 5s for LOAD to start (SEARCHING.../LOADING... clears the boot READY.)
+      await new Promise((r) => setTimeout(r, 5000));
+
+      // Poll screen RAM for up to 55 more seconds (60s total)
+      let loadComplete = false;
+      for (let attempt = 0; attempt < 55; attempt++) {
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 5000);
+          try {
+            const r = await fetch(`${baseUrl}/v1/machine:readmem?address=0400&length=1000`, {
+              headers: hdrs, signal: ctrl.signal,
+            });
+            if (r.ok) {
+              const buf = new Uint8Array(await r.arrayBuffer());
+              if (buf.length >= 1000 && findReady(buf)) {
+                loadComplete = true;
+                break;
+              }
+            }
+          } finally { clearTimeout(t); }
+        } catch {
+          // readmem failed — device busy loading, try again
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+
+      if (!loadComplete) {
+        // Timeout — send RUN anyway in case READY was missed
+      }
+
+      // Small delay to let BASIC fully settle after printing READY.
+      await new Promise((r) => setTimeout(r, 500));
 
       // 5. Stuff RUN + CR into keyboard buffer (4 bytes)
       //    R=$52, U=$55, N=$4E, CR=$0D
