@@ -178,7 +178,7 @@ describe("MacroEngine upload steps", () => {
   });
 
   describe("upload_and_run", () => {
-    it("mounts, resets, then injects LOAD and RUN via DMA", async () => {
+    it("mounts, resets, then injects LOAD and RUN via DMA", { timeout: 25000 }, async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       const fetchCalls: { url: string; method: string }[] = [];
@@ -192,21 +192,22 @@ describe("MacroEngine upload steps", () => {
       ]);
       const device = makeDevice();
       const exec = await engine.execute(macro, device);
-      // Wait for async execution + the 2.5s delay inside upload_and_run
-      await new Promise((r) => setTimeout(r, 3500));
+      // Wait for async execution + 2.5s boot delay + 15s load delay
+      await new Promise((r) => setTimeout(r, 19000));
 
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("completed");
 
-      // Should have: POST mount, PUT reset, then multiple PUT writemem calls
-      expect(fetchCalls.length).toBeGreaterThanOrEqual(4);
+      // Should have: POST mount, PUT reset, writemem calls for LOAD injection,
+      // then after delay, writemem calls for RUN injection
+      expect(fetchCalls.length).toBeGreaterThanOrEqual(8);
       expect(fetchCalls[0]!.method).toBe("POST");
       expect(fetchCalls[0]!.url).toContain("/v1/drives/a:mount");
       expect(fetchCalls[1]!.method).toBe("PUT");
       expect(fetchCalls[1]!.url).toContain("/v1/machine:reset");
-      // Remaining calls are writemem for screen RAM + keyboard buffer injection
+      // Should have two batches of writemem: one for LOAD, one for RUN
       const writememCalls = fetchCalls.filter(c => c.url.includes("writemem"));
-      expect(writememCalls.length).toBeGreaterThanOrEqual(2);
+      expect(writememCalls.length).toBeGreaterThanOrEqual(6);
     });
 
     it("fails when reset returns HTTP error after successful mount", async () => {
@@ -234,7 +235,7 @@ describe("MacroEngine upload steps", () => {
       expect(updated.error).toContain("failed");
     });
 
-    it("includes X-Password on all requests", async () => {
+    it("includes X-Password on all requests", { timeout: 25000 }, async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       const capturedHeaders: Record<string, string>[] = [];
@@ -248,12 +249,12 @@ describe("MacroEngine upload steps", () => {
       ]);
       const device = makeDevice({ password: "mypass" });
       const exec = await engine.execute(macro, device);
-      await new Promise((r) => setTimeout(r, 3500));
+      await new Promise((r) => setTimeout(r, 19000));
 
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("completed");
       // All requests should have the password
-      expect(capturedHeaders.length).toBeGreaterThanOrEqual(4);
+      expect(capturedHeaders.length).toBeGreaterThanOrEqual(8);
       for (const h of capturedHeaders) {
         expect(h["X-Password"]).toBe("mypass");
       }
