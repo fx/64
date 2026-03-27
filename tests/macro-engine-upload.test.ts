@@ -178,7 +178,7 @@ describe("MacroEngine upload steps", () => {
   });
 
   describe("upload_and_run", () => {
-    it("mounts then reboots the machine", async () => {
+    it("mounts then resets the machine", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       const fetchCalls: { url: string; method: string }[] = [];
@@ -197,22 +197,22 @@ describe("MacroEngine upload steps", () => {
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("completed");
 
-      // Should have made two calls: POST mount then PUT reboot
+      // Should have made two calls: POST mount then PUT reset
       expect(fetchCalls).toHaveLength(2);
       expect(fetchCalls[0]!.method).toBe("POST");
       expect(fetchCalls[0]!.url).toContain("/v1/drives/a:mount");
       expect(fetchCalls[1]!.method).toBe("PUT");
-      expect(fetchCalls[1]!.url).toContain("/v1/machine:reboot");
+      expect(fetchCalls[1]!.url).toContain("/v1/machine:reset");
     });
 
-    it("fails when reboot returns HTTP error after successful mount", async () => {
+    it("fails when reset returns HTTP error after successful mount", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       let callCount = 0;
       globalThis.fetch = (async () => {
         callCount++;
         if (callCount === 2) {
-          return new Response("Reboot error", { status: 500 });
+          return new Response("Reset error", { status: 500 });
         }
         return new Response("", { status: 200 });
       }) as any;
@@ -226,10 +226,10 @@ describe("MacroEngine upload steps", () => {
 
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("failed");
-      expect(updated.error).toContain("reboot failed");
+      expect(updated.error).toContain("reset failed");
     });
 
-    it("includes X-Password on both mount and reboot requests", async () => {
+    it("includes X-Password on both mount and reset requests", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       const capturedHeaders: Record<string, string>[] = [];

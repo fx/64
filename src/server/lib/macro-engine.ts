@@ -256,30 +256,32 @@ export class MacroEngine {
       clearTimeout(timer);
     }
 
-    // For upload_and_run: reboot the machine so it auto-loads from the mounted disk
-    // (most C64 games have an autostart sequence that triggers on boot with a disk in drive 8)
+    // For upload_and_run: after mounting, reset the machine.
+    // The C64 does NOT auto-run from disk — the user must type LOAD"*",8,1 and RUN.
+    // The reset puts the machine in a clean state ready for manual loading.
+    // Future improvement: use DMA keyboard injection if the C64U API supports it.
     if (step.action === "upload_and_run") {
-      const rebootUrl = `http://${device.ip}:${device.port}/v1/machine:reboot`;
-      const rebootHeaders: Record<string, string> = {};
-      if (device.password) rebootHeaders["X-Password"] = device.password;
+      const resetUrl = `http://${device.ip}:${device.port}/v1/machine:reset`;
+      const resetHeaders: Record<string, string> = {};
+      if (device.password) resetHeaders["X-Password"] = device.password;
 
-      const rebootController = new AbortController();
-      const rebootTimer = setTimeout(() => rebootController.abort(), STEP_TIMEOUT_MS);
+      const resetController = new AbortController();
+      const resetTimer = setTimeout(() => resetController.abort(), STEP_TIMEOUT_MS);
 
       try {
-        const rebootRes = await fetch(rebootUrl, {
+        const resetRes = await fetch(resetUrl, {
           method: "PUT",
-          headers: rebootHeaders,
-          signal: rebootController.signal,
+          headers: resetHeaders,
+          signal: resetController.signal,
         });
-        if (!rebootRes.ok) {
-          const text = await rebootRes.text().catch(() => "");
+        if (!resetRes.ok) {
+          const text = await resetRes.text().catch(() => "");
           throw new Error(
-            `Step '${step.action}' reboot failed: HTTP ${rebootRes.status}${text ? ` - ${text}` : ""}`,
+            `Step '${step.action}' reset failed: HTTP ${resetRes.status}${text ? ` - ${text}` : ""}`,
           );
         }
       } finally {
-        clearTimeout(rebootTimer);
+        clearTimeout(resetTimer);
       }
     }
   }
