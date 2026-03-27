@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import type { Device, Macro, MacroExecution, MacroStep } from "@shared/types.ts";
 import { emitMacroEvent } from "./macro-events.ts";
 
@@ -143,6 +145,11 @@ export class MacroEngine {
       return;
     }
 
+    if (step.action === "upload_mount" || step.action === "upload_and_run") {
+      await this.executeUploadStep(step, device);
+      return;
+    }
+
     const { method, path } = this.mapStepToRequest(step);
     const url = `http://${device.ip}:${device.port}${path}`;
     const headers: Record<string, string> = {};
@@ -178,9 +185,170 @@ export class MacroEngine {
     }
   }
 
+  /** Execute an upload_mount or upload_and_run step */
+  private async executeUploadStep(
+    step: Extract<MacroStep, { action: "upload_mount" | "upload_and_run" }>,
+    device: Device,
+  ): Promise<void> {
+    const libraryDir = join(process.cwd(), "data", "library");
+
+    // Sanitize localFile to prevent path traversal
+    const safeName = basename(step.localFile);
+    if (safeName !== step.localFile || step.localFile.includes("..")) {
+      throw new Error(
+        `Step '${step.action}' failed: invalid file name: ${step.localFile}`,
+      );
+    }
+    const filePath = join(libraryDir, safeName);
+
+    let fileData: Buffer;
+    try {
+      fileData = readFileSync(filePath);
+    } catch {
+      throw new Error(
+        `Step '${step.action}' failed: file not found: ${step.localFile}`,
+      );
+    }
+
+    // Derive file type from extension
+    const lastDot = step.localFile.lastIndexOf(".");
+    const fileExt = lastDot !== -1 ? step.localFile.slice(lastDot + 1).toLowerCase() : "";
+    const isPrg = fileExt === "prg";
+    const isDiskImage = ["d64", "d71", "d81", "g64", "g71"].includes(fileExt);
+
+    const baseUrl = `http://${device.ip}:${device.port}`;
+    const headers: Record<string, string> = {
+      "content-type": "application/octet-stream",
+    };
+    if (device.password) headers["X-Password"] = device.password;
+
+    const doFetch = async (url: string, method: string, body?: Buffer) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), STEP_TIMEOUT_MS);
+      try {
+        const r = await fetch(url, { method, headers, body, signal: ctrl.signal });
+        if (!r.ok) {
+          const text = await r.text().catch(() => "");
+          throw new Error(`Step '${step.action}' failed: HTTP ${r.status}${text ? ` - ${text}` : ""}`);
+        }
+        const ct = r.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const json = await r.json().catch(() => null) as { errors?: string[] } | null;
+          if (json?.errors?.length) {
+            throw new Error(`Step '${step.action}' failed: ${json.errors.join("; ")}`);
+          }
+        }
+      } finally { clearTimeout(t); }
+    };
+
+    if (isPrg) {
+      // PRG files: use POST /v1/runners:run_prg (DMA load + auto-run) for upload_and_run,
+      // or POST /v1/runners:load_prg (DMA load only) for upload_mount
+      const endpoint = step.action === "upload_and_run" ? "run_prg" : "load_prg";
+      await doFetch(`${baseUrl}/v1/runners:${endpoint}`, "POST", fileData);
+      // run_prg handles everything — no keyboard injection needed for PRGs
+      return;
+    }
+
+    if (!isDiskImage) {
+      throw new Error(`Step '${step.action}' failed: unsupported file type '.${fileExt}'`);
+    }
+
+    // Disk images: mount via POST /v1/drives/<drive>:mount
+    const VALID_MODES = new Set(["readwrite", "readonly", "unlinked"]);
+    const mode = step.mode && VALID_MODES.has(step.mode) ? step.mode : "readwrite";
+    let mountUrl = `${baseUrl}/v1/drives/${step.drive}:mount?mode=${encodeURIComponent(mode)}`;
+    mountUrl += `&type=${encodeURIComponent(fileExt)}`;
+    await doFetch(mountUrl, "POST", fileData);
+
+    // For upload_and_run with disk images: reset, inject LOAD"*",8,1 via keyboard
+    // buffer, wait for loading, then inject RUN.
+    //
+    // Uses BASIC keyword abbreviation: L + SHIFT-O = LOAD ($4C $CF)
+    // LOAD"*",8,1 + CR = exactly 10 bytes (keyboard buffer max).
+    // RUN + CR = 4 bytes.
+    if (step.action === "upload_and_run") {
+      // Helper: stuff PETSCII bytes into keyboard buffer ($0277) and set length ($C6)
+      const stuffKeyboard = async (petsciiBytes: number[]) => {
+        const hex = petsciiBytes.map(b => b.toString(16).padStart(2, '0')).join('');
+        const len = petsciiBytes.length.toString(16).padStart(2, '0');
+        await doFetch(`${baseUrl}/v1/machine:writemem?address=0277&data=${hex}`, "PUT");
+        await doFetch(`${baseUrl}/v1/machine:writemem?address=C6&data=${len}`, "PUT");
+      };
+
+      // 1. Reset the machine
+      await doFetch(`${baseUrl}/v1/machine:reset`, "PUT");
+
+      // 2. Wait for BASIC to boot
+      await new Promise((r) => setTimeout(r, 2500));
+
+      // 3. Stuff LOAD"*",8,1 + CR into keyboard buffer (abbreviated form, 10 bytes)
+      //    L=$4C, SHIFT-O=$CF, "=$22, *=$2A, ,=$2C, 8=$38, 1=$31, CR=$0D
+      await stuffKeyboard([0x4C, 0xCF, 0x22, 0x2A, 0x22, 0x2C, 0x38, 0x2C, 0x31, 0x0D]);
+
+      // 4. Wait for LOAD to complete by polling screen RAM for "READY."
+      //    After LOAD finishes, BASIC prints "READY." to the screen.
+      //    Screen codes for READY.: R=18 E=5 A=1 D=4 Y=25 .=46
+      //    We read screen RAM ($0400, 1000 bytes) every second and scan for that sequence.
+      //    The first "READY." is from boot — we need to see it appear AFTER LOAD starts,
+      //    so we skip the first 5 seconds (LOAD prints SEARCHING.../LOADING... first),
+      //    then poll until we see READY. or timeout after 60 seconds.
+      const readyScreenCodes = [18, 5, 1, 4, 25, 46]; // R E A D Y .
+
+      const findReady = (screenData: Uint8Array): boolean => {
+        for (let i = 0; i <= screenData.length - readyScreenCodes.length; i++) {
+          let match = true;
+          for (let j = 0; j < readyScreenCodes.length; j++) {
+            if (screenData[i + j] !== readyScreenCodes[j]) { match = false; break; }
+          }
+          if (match) return true;
+        }
+        return false;
+      };
+
+      // Wait 5s for LOAD to start (SEARCHING.../LOADING... clears the boot READY.)
+      await new Promise((r) => setTimeout(r, 5000));
+
+      // Poll screen RAM for up to 55 more seconds (60s total)
+      let loadComplete = false;
+      for (let attempt = 0; attempt < 55; attempt++) {
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 5000);
+          try {
+            const r = await fetch(`${baseUrl}/v1/machine:readmem?address=0400&length=1000`, {
+              headers, signal: ctrl.signal,
+            });
+            if (r.ok) {
+              const buf = new Uint8Array(await r.arrayBuffer());
+              if (buf.length >= 1000 && findReady(buf)) {
+                loadComplete = true;
+                break;
+              }
+            }
+          } finally { clearTimeout(t); }
+        } catch {
+          // readmem failed — device busy loading, try again
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+
+      if (!loadComplete) {
+        // Timeout — send RUN anyway in case READY was missed
+      }
+
+      // Small delay to let BASIC fully settle after printing READY.
+      await new Promise((r) => setTimeout(r, 500));
+
+      // 5. Stuff RUN + CR into keyboard buffer (4 bytes)
+      //    R=$52, U=$55, N=$4E, CR=$0D
+      await stuffKeyboard([0x52, 0x55, 0x4E, 0x0D]);
+    }
+  }
+
   /** Map a macro step to the corresponding C64U HTTP request */
   mapStepToRequest(
-    step: Exclude<MacroStep, { action: "delay" }>,
+    step: Exclude<MacroStep, { action: "delay" } | { action: "upload_mount" } | { action: "upload_and_run" }>,
   ): { method: string; path: string } {
     switch (step.action) {
       case "reset":

@@ -8,6 +8,7 @@ import { createFileRoutes } from "./routes/files.ts";
 import { createCollectionRoutes } from "./routes/collections.ts";
 import { createMacroRoutes } from "./routes/macros.ts";
 import { createPlaylistRoutes } from "./routes/playlists.ts";
+import library from "./routes/library.ts";
 import { DeviceStore } from "./lib/device-store.ts";
 import { CollectionStore } from "./lib/collection-store.ts";
 import { MacroStore } from "./lib/macro-store.ts";
@@ -49,7 +50,8 @@ const apiRoutes = app
   .route("/", collectionRoutes)
   .route("/", macroRoutes)
   .route("/", playlistRoutes)
-  .route("/", proxyRoutes);
+  .route("/", proxyRoutes)
+  .route("/", library);
 
 export type AppType = typeof apiRoutes;
 

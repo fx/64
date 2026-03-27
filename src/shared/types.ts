@@ -107,7 +107,9 @@ export type MacroStep =
   | { action: "modplay"; file: string }
   | { action: "writemem"; address: string; data: string }
   | { action: "set_config"; category: string; item: string; value: string }
-  | { action: "delay"; ms: number };
+  | { action: "delay"; ms: number }
+  | { action: "upload_mount"; localFile: string; drive: "a" | "b"; mode?: string }
+  | { action: "upload_and_run"; localFile: string; drive: "a" | "b"; mode?: string };
 
 export interface Macro {
   id: string;

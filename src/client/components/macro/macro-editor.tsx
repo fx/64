@@ -4,6 +4,7 @@ import { C64Button } from "../ui/c64-button.tsx";
 import { C64Input } from "../ui/c64-input.tsx";
 import { C64Select } from "../ui/c64-select.tsx";
 import { C64FileBrowser } from "../device/file-browser.tsx";
+import { LocalFilePicker } from "./local-file-picker.tsx";
 import type { MacroStep, Macro } from "@shared/types.ts";
 
 const ACTION_OPTIONS = [
@@ -21,6 +22,8 @@ const ACTION_OPTIONS = [
   { value: "writemem", label: "WRITE MEM" },
   { value: "set_config", label: "SET CONFIG" },
   { value: "delay", label: "DELAY" },
+  { value: "upload_mount", label: "UPLOAD & MOUNT" },
+  { value: "upload_and_run", label: "UPLOAD & RUN" },
 ];
 
 const DRIVE_OPTIONS = [
@@ -50,6 +53,10 @@ function makeDefaultStep(action: string): MacroStep {
       return { action: "set_config", category: "", item: "", value: "" };
     case "delay":
       return { action: "delay", ms: 1000 };
+    case "upload_mount":
+      return { action: "upload_mount", localFile: "", drive: "a" };
+    case "upload_and_run":
+      return { action: "upload_and_run", localFile: "", drive: "a" };
     default:
       return { action: action as "reset" };
   }
@@ -74,9 +81,57 @@ function stepDescription(step: MacroStep): string {
       return `CONFIG ${step.category}/${step.item}=${step.value}`;
     case "delay":
       return `DELAY ${step.ms}MS`;
+    case "upload_mount":
+      return `UPLOAD ${step.localFile || "?"} → ${step.drive.toUpperCase()}`;
+    case "upload_and_run":
+      return `UPLOAD+RUN ${step.localFile || "?"} → ${step.drive.toUpperCase()}`;
     default:
       return step.action.toUpperCase();
   }
+}
+
+interface UploadStepFieldsProps {
+  step: Extract<MacroStep, { action: "upload_mount" | "upload_and_run" }>;
+  onChange: (step: MacroStep) => void;
+}
+
+function UploadStepFields({ step, onChange }: UploadStepFieldsProps) {
+  const [showPicker, setShowPicker] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-[0.25em]">
+      <C64Select
+        options={DRIVE_OPTIONS}
+        value={step.drive}
+        onChange={(e) => onChange({ ...step, drive: e.target.value as "a" | "b" })}
+      />
+      <div className="flex gap-[1ch] items-end">
+        <C64Input
+          placeholder="LOCAL FILE"
+          value={step.localFile}
+          onChange={(e) => onChange({ ...step, localFile: e.target.value })}
+          className="flex-1"
+        />
+        <C64Button onClick={() => setShowPicker(true)}>BROWSE</C64Button>
+      </div>
+      <C64Input
+        placeholder="MODE (OPTIONAL)"
+        value={step.mode || ""}
+        onChange={(e) => onChange({ ...step, mode: e.target.value || undefined })}
+      />
+      {showPicker && (
+        <div className="mt-[0.5em]">
+          <LocalFilePicker
+            onSelect={(filename) => {
+              onChange({ ...step, localFile: filename });
+              setShowPicker(false);
+            }}
+            onClose={() => setShowPicker(false)}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface StepFieldsProps {
@@ -251,6 +306,29 @@ function StepFields({ step, onChange, deviceId }: StepFieldsProps) {
             placeholder="VALUE"
             value={step.value}
             onChange={(e) => onChange({ ...step, value: e.target.value })}
+          />
+        </div>
+      );
+
+    case "upload_mount":
+      return (
+        <UploadStepFields
+          step={step}
+          onChange={onChange}
+        />
+      );
+
+    case "upload_and_run":
+      return (
+        <div className="flex flex-col gap-[0.25em]">
+          <UploadStepFields
+            step={step}
+            onChange={onChange}
+          />
+          <C64Input
+            placeholder="RUN FILE (OPTIONAL)"
+            value={step.runFile || ""}
+            onChange={(e) => onChange({ ...step, runFile: e.target.value || undefined })}
           />
         </div>
       );
