@@ -109,7 +109,7 @@ export type MacroStep =
   | { action: "set_config"; category: string; item: string; value: string }
   | { action: "delay"; ms: number }
   | { action: "upload_mount"; localFile: string; drive: "a" | "b"; mode?: string }
-  | { action: "upload_and_run"; localFile: string; drive: "a" | "b"; mode?: string; runFile?: string };
+  | { action: "upload_and_run"; localFile: string; drive: "a" | "b"; mode?: string };
 
 export interface Macro {
   id: string;

@@ -178,35 +178,7 @@ describe("MacroEngine upload steps", () => {
   });
 
   describe("upload_and_run", () => {
-    it("mounts then runs PRG when runFile is provided", async () => {
-      writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
-
-      const fetchCalls: { url: string; method: string }[] = [];
-      globalThis.fetch = (async (url: string | URL | Request, opts?: any) => {
-        fetchCalls.push({ url: String(url), method: opts?.method || "GET" });
-        return new Response("", { status: 200 });
-      }) as any;
-
-      const macro = makeMacro([
-        { action: "upload_and_run", localFile: "game.d64", drive: "a", runFile: "GAME.PRG" },
-      ]);
-      const device = makeDevice();
-      const exec = await engine.execute(macro, device);
-      await new Promise((r) => setTimeout(r, 100));
-
-      const updated = engine.getExecution(exec.id)!;
-      expect(updated.status).toBe("completed");
-
-      // Should have made two calls: POST mount then PUT run_prg
-      expect(fetchCalls).toHaveLength(2);
-      expect(fetchCalls[0]!.method).toBe("POST");
-      expect(fetchCalls[0]!.url).toContain("/v1/drives/a:mount");
-      expect(fetchCalls[1]!.method).toBe("PUT");
-      expect(fetchCalls[1]!.url).toContain("/v1/runners:run_prg");
-      expect(fetchCalls[1]!.url).toContain("file=GAME.PRG");
-    });
-
-    it("only mounts when runFile is not provided", async () => {
+    it("mounts then reboots the machine", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       const fetchCalls: { url: string; method: string }[] = [];
@@ -225,26 +197,28 @@ describe("MacroEngine upload steps", () => {
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("completed");
 
-      // Should have only made the mount call
-      expect(fetchCalls).toHaveLength(1);
+      // Should have made two calls: POST mount then PUT reboot
+      expect(fetchCalls).toHaveLength(2);
       expect(fetchCalls[0]!.method).toBe("POST");
       expect(fetchCalls[0]!.url).toContain("/v1/drives/a:mount");
+      expect(fetchCalls[1]!.method).toBe("PUT");
+      expect(fetchCalls[1]!.url).toContain("/v1/machine:reboot");
     });
 
-    it("fails when run step returns HTTP error after successful mount", async () => {
+    it("fails when reboot returns HTTP error after successful mount", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       let callCount = 0;
       globalThis.fetch = (async () => {
         callCount++;
         if (callCount === 2) {
-          return new Response("Run error", { status: 500 });
+          return new Response("Reboot error", { status: 500 });
         }
         return new Response("", { status: 200 });
       }) as any;
 
       const macro = makeMacro([
-        { action: "upload_and_run", localFile: "game.d64", drive: "a", runFile: "GAME.PRG" },
+        { action: "upload_and_run", localFile: "game.d64", drive: "a" },
       ]);
       const device = makeDevice();
       const exec = await engine.execute(macro, device);
@@ -252,11 +226,10 @@ describe("MacroEngine upload steps", () => {
 
       const updated = engine.getExecution(exec.id)!;
       expect(updated.status).toBe("failed");
-      expect(updated.error).toContain("run failed");
-      expect(updated.error).toContain("HTTP 500");
+      expect(updated.error).toContain("reboot failed");
     });
 
-    it("includes X-Password on both mount and run requests", async () => {
+    it("includes X-Password on both mount and reboot requests", async () => {
       writeFileSync(join(tempDir, "data", "games", "game.d64"), Buffer.alloc(10));
 
       const capturedHeaders: Record<string, string>[] = [];
@@ -266,7 +239,7 @@ describe("MacroEngine upload steps", () => {
       }) as any;
 
       const macro = makeMacro([
-        { action: "upload_and_run", localFile: "game.d64", drive: "a", runFile: "GAME.PRG" },
+        { action: "upload_and_run", localFile: "game.d64", drive: "a" },
       ]);
       const device = makeDevice({ password: "mypass" });
       const exec = await engine.execute(macro, device);

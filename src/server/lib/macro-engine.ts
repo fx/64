@@ -256,39 +256,30 @@ export class MacroEngine {
       clearTimeout(timer);
     }
 
-    // For upload_and_run, optionally run a PRG from the mounted disk
-    if (step.action === "upload_and_run" && step.runFile) {
-      const runUrl = `http://${device.ip}:${device.port}/v1/runners:run_prg?file=${encodeURIComponent(step.runFile)}`;
-      const runHeaders: Record<string, string> = {};
-      if (device.password) runHeaders["X-Password"] = device.password;
+    // For upload_and_run: reboot the machine so it auto-loads from the mounted disk
+    // (most C64 games have an autostart sequence that triggers on boot with a disk in drive 8)
+    if (step.action === "upload_and_run") {
+      const rebootUrl = `http://${device.ip}:${device.port}/v1/machine:reboot`;
+      const rebootHeaders: Record<string, string> = {};
+      if (device.password) rebootHeaders["X-Password"] = device.password;
 
-      const runController = new AbortController();
-      const runTimer = setTimeout(() => runController.abort(), STEP_TIMEOUT_MS);
+      const rebootController = new AbortController();
+      const rebootTimer = setTimeout(() => rebootController.abort(), STEP_TIMEOUT_MS);
 
       try {
-        const runRes = await fetch(runUrl, {
+        const rebootRes = await fetch(rebootUrl, {
           method: "PUT",
-          headers: runHeaders,
-          signal: runController.signal,
+          headers: rebootHeaders,
+          signal: rebootController.signal,
         });
-        if (!runRes.ok) {
-          const text = await runRes.text().catch(() => "");
+        if (!rebootRes.ok) {
+          const text = await rebootRes.text().catch(() => "");
           throw new Error(
-            `Step '${step.action}' run failed: HTTP ${runRes.status}${text ? ` - ${text}` : ""}`,
+            `Step '${step.action}' reboot failed: HTTP ${rebootRes.status}${text ? ` - ${text}` : ""}`,
           );
         }
-        // Check C64U application-level errors (HTTP 200 but errors array)
-        const runCt = runRes.headers.get("content-type") || "";
-        if (runCt.includes("application/json")) {
-          const runBody = await runRes.json().catch(() => null) as { errors?: string[] } | null;
-          if (runBody?.errors?.length) {
-            throw new Error(
-              `Step '${step.action}' run failed: ${runBody.errors.join("; ")}`,
-            );
-          }
-        }
       } finally {
-        clearTimeout(runTimer);
+        clearTimeout(rebootTimer);
       }
     }
   }
