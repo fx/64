@@ -75,7 +75,9 @@ Use `hc` client from `src/client/lib/api.ts` for type-safe API calls. Types are 
 - TypeScript strict mode with `jsxImportSource: "react"`
 - Path aliases: `@/*` → `./src/*`, `@server/*`, `@client/*`, `@shared/*`
 
-**Task Completion:** Every PR must mark completed task(s) as done (`- [x]`) in the relevant tracking file (`docs/PROJECT.md` or the spec file in `docs/specs/`). Include the task-list update in the PR.
+## Task Tracking
+
+**You MUST load the `/project-management` skill before creating, modifying, or completing any task.** It owns all task-tracking rules and knows where tasks belong. Do not manage tasks without it.
 
 ## Testing
 
