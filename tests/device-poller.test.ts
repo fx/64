@@ -443,7 +443,7 @@ describe("DevicePoller", () => {
   });
 
   describe("per-endpoint backoff", () => {
-    it("drives failure does not affect info interval", async () => {
+    it("drives failure does not prevent info from polling and emitting", async () => {
       store.upsert(makeDevice({ id: "DEV1" }));
 
       const infoData = {
@@ -493,7 +493,7 @@ describe("DevicePoller", () => {
       expect(infoCallCount).toBeGreaterThanOrEqual(1);
     });
 
-    it("info failure does not affect drives interval", async () => {
+    it("info failure does not prevent drives from polling and emitting", async () => {
       store.upsert(makeDevice({ id: "DEV1" }));
 
       const drivesData = { drives: [{ a: { enabled: true, bus_id: 8, type: "1541" } }], errors: [] };
