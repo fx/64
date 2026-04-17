@@ -4,7 +4,6 @@ import { formatAddress } from "../../lib/disassembler.ts";
 const BYTES_PER_ROW = 16;
 const ROW_HEIGHT = 16; // 16px = 1em at base font size
 const VISIBLE_ROWS = 32;
-const TOTAL_ROWS = 4096; // 65536 / 16
 
 interface HexViewerProps {
   data: Uint8Array | undefined;
@@ -45,32 +44,32 @@ export function HexViewer({
   const totalDataRows = data ? Math.ceil(data.length / BYTES_PER_ROW) : 0;
   const maxScroll = Math.max(0, totalDataRows - VISIBLE_ROWS);
 
+  const setScroll = useCallback(
+    (offset: number) => {
+      const clamped = Math.max(0, Math.min(maxScroll, offset));
+      if (onScrollOffset) {
+        onScrollOffset(clamped);
+      } else {
+        setInternalScrollOffset(clamped);
+      }
+    },
+    [maxScroll, onScrollOffset],
+  );
+
   const handleScroll = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? 3 : -3;
-      const newOffset = Math.max(0, Math.min(maxScroll, scrollOffset + delta));
-      if (onScrollOffset) {
-        onScrollOffset(newOffset);
-      } else {
-        setInternalScrollOffset(newOffset);
-      }
+      setScroll(scrollOffset + (e.deltaY > 0 ? 3 : -3));
     },
-    [scrollOffset, maxScroll, onScrollOffset],
+    [scrollOffset, setScroll],
   );
 
   const handleJump = useCallback(() => {
     const addr = parseInt(jumpInput, 16);
     if (isNaN(addr) || addr < 0 || addr > 0xFFFF) return;
-    const row = Math.floor((addr - baseAddress) / BYTES_PER_ROW);
-    const newOffset = Math.max(0, Math.min(maxScroll, row));
-    if (onScrollOffset) {
-      onScrollOffset(newOffset);
-    } else {
-      setInternalScrollOffset(newOffset);
-    }
+    setScroll(Math.floor((addr - baseAddress) / BYTES_PER_ROW));
     setJumpInput("");
-  }, [jumpInput, baseAddress, maxScroll, onScrollOffset]);
+  }, [jumpInput, baseAddress, setScroll]);
 
   const handleByteClick = useCallback((addr: number) => {
     if (!onByteEdit) return;
@@ -231,21 +230,12 @@ export function HexViewer({
         <span className="w-[5ch] inline-block">ADDR</span>
         <span className="inline-block w-[1ch]"> </span>
         <span className="inline-block">
-          {Array.from({ length: BYTES_PER_ROW }, (_, i) =>
-            hexByte(i),
-          ).join("")
-            .replace(/(.{2})/g, "$1")
-            .split("")
-            .reduce((acc, _, i, arr) => {
-              if (i % 2 === 0) acc.push(arr[i] + arr[i + 1]);
-              return acc;
-            }, [] as string[])
-            .map((h, i) => (
-              <span key={i}>
-                {h}
-                {i === 7 ? " " : ""}
-              </span>
-            ))}
+          {Array.from({ length: BYTES_PER_ROW }, (_, i) => (
+            <span key={i}>
+              {hexByte(i)}
+              {i === 7 ? " " : ""}
+            </span>
+          ))}
         </span>
         <span className="inline-block w-[2ch]"> </span>
         <span className="inline-block">ASCII</span>
