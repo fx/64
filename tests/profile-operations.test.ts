@@ -161,6 +161,25 @@ describe("POST /api/profiles/capture", () => {
     expect(data.error).toContain("offline");
   });
 
+  it("returns error when device returns errors array", async () => {
+    deviceStore.upsert(makeDevice());
+
+    globalThis.fetch = mock(async () => {
+      return new Response(JSON.stringify({ categories: [], errors: ["Config subsystem unavailable"] }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const res = await app.request("/api/profiles/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: "dev-1", name: "Test" }),
+    });
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data.error).toContain("Config subsystem unavailable");
+  });
+
   it("returns error when device fetch fails", async () => {
     deviceStore.upsert(makeDevice());
 
@@ -227,10 +246,11 @@ describe("POST /api/profiles/:id/apply", () => {
     const data = await res.json();
     expect(data.appliedCount).toBe(4); // 2 Audio items + 2 Video items
     expect(data.errors).toEqual([]);
-    // Should have PUT for each config item
+    // Should have PUT for each config item using query params
     expect(putUrls.length).toBe(4);
-    expect(putUrls.some((u) => u.includes("/v1/configs/Audio/SID%20Engine"))).toBe(true);
-    expect(putUrls.some((u) => u.includes("/v1/configs/Video/Border"))).toBe(true);
+    expect(putUrls.some((u) => u.includes("/v1/configs/Audio/SID%20Engine?value=ReSID"))).toBe(true);
+    expect(putUrls.some((u) => u.includes("/v1/configs/Video/Border?value=Normal"))).toBe(true);
+    expect(putUrls.some((u) => u.includes("/v1/configs/Video/Palette?value=1"))).toBe(true);
   });
 
   it("applies with saveToFlash", async () => {
@@ -322,6 +342,20 @@ describe("POST /api/profiles/:id/apply", () => {
     expect(data.error).toContain("offline");
   });
 
+  it("returns 400 for non-boolean saveToFlash", async () => {
+    const profile = profileStore.create({ name: "Test", config: makeConfig() });
+    deviceStore.upsert(makeDevice());
+
+    const res = await app.request(`/api/profiles/${profile.id}/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: "dev-1", saveToFlash: "yes" }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("saveToFlash");
+  });
+
   it("reports partial failures when some items fail", async () => {
     const profile = profileStore.create({
       name: "Test",
@@ -353,6 +387,35 @@ describe("POST /api/profiles/:id/apply", () => {
     const data = await res.json();
     expect(data.appliedCount).toBe(1);
     expect(data.errors.length).toBe(1);
+  });
+
+  it("reports error when device PUT returns errors array", async () => {
+    const profile = profileStore.create({
+      name: "Test",
+      config: { "Audio": { "Volume": "10" } },
+    });
+    deviceStore.upsert(makeDevice());
+
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        return new Response(JSON.stringify({ errors: ["Read-only setting"] }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("Not found", { status: 404 });
+    }) as typeof fetch;
+
+    const res = await app.request(`/api/profiles/${profile.id}/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: "dev-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.appliedCount).toBe(0);
+    expect(data.errors.length).toBe(1);
+    expect(data.errors[0]).toContain("Read-only setting");
   });
 });
 
@@ -485,6 +548,17 @@ describe("GET /api/profiles/:id/diff", () => {
     expect(res.status).toBe(404);
     const data = await res.json();
     expect(data.error).toContain("Comparison profile not found");
+  });
+
+  it("returns 400 when both against and deviceId provided", async () => {
+    const p1 = profileStore.create({ name: "A", config: makeConfig() });
+    const p2 = profileStore.create({ name: "B", config: makeConfig() });
+    deviceStore.upsert(makeDevice());
+
+    const res = await app.request(`/api/profiles/${p1.id}/diff?against=${p2.id}&deviceId=dev-1`);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("not both");
   });
 
   it("returns 400 when no query params provided", async () => {

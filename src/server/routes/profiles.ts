@@ -57,6 +57,11 @@ async function deviceFetch<T>(device: Device, path: string): Promise<{ data: T }
     const res = await fetch(url, { headers: deviceHeaders(device), signal: controller.signal });
     if (!res.ok) return { error: `Device returned ${res.status}`, status: res.status };
     const data = (await res.json()) as T;
+    // C64U returns 200 with errors array for application-level failures
+    const errors = (data as Record<string, unknown>)?.errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      return { error: `Device error: ${errors.join(", ")}`, status: 502 };
+    }
     return { data };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -68,20 +73,28 @@ async function deviceFetch<T>(device: Device, path: string): Promise<{ data: T }
   }
 }
 
-/** PUT JSON to a device endpoint */
-async function devicePut(device: Device, path: string, body?: unknown): Promise<{ ok: true } | { error: string; status: number }> {
+/** PUT to a device endpoint (C64U uses query params, not JSON body) */
+async function devicePut(device: Device, path: string): Promise<{ ok: true } | { error: string; status: number }> {
   const url = `http://${device.ip}:${device.port}${path}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEVICE_TIMEOUT_MS);
   try {
-    const headers: Record<string, string> = { ...deviceHeaders(device), "Content-Type": "application/json" };
     const res = await fetch(url, {
       method: "PUT",
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers: deviceHeaders(device),
       signal: controller.signal,
     });
     if (!res.ok) return { error: `Device returned ${res.status}`, status: res.status };
+    // C64U returns 200 with errors array for application-level failures
+    try {
+      const data = (await res.json()) as Record<string, unknown>;
+      const errors = data?.errors;
+      if (Array.isArray(errors) && errors.length > 0) {
+        return { error: `Device error: ${errors.join(", ")}`, status: 502 };
+      }
+    } catch {
+      // Response may not be JSON — that's fine for PUT
+    }
     return { ok: true };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -351,6 +364,10 @@ export function createProfileRoutes(profileStore: ProfileStore, deviceStore: Dev
       if (!device) return c.json({ error: "Device not found" }, 404);
       if (!device.online) return c.json({ error: "Device is offline" }, 503);
 
+      if (body.saveToFlash !== undefined && typeof body.saveToFlash !== "boolean") {
+        return c.json({ error: "saveToFlash must be a boolean" }, 400);
+      }
+
       let appliedCount = 0;
       const errors: string[] = [];
 
@@ -358,8 +375,7 @@ export function createProfileRoutes(profileStore: ProfileStore, deviceStore: Dev
         for (const [item, value] of Object.entries(items)) {
           const result = await devicePut(
             device,
-            `/v1/configs/${encodeURIComponent(category)}/${encodeURIComponent(item)}`,
-            { value },
+            `/v1/configs/${encodeURIComponent(category)}/${encodeURIComponent(item)}?value=${encodeURIComponent(String(value))}`,
           );
           if ("error" in result) {
             errors.push(`${category}/${item}: ${result.error}`);
@@ -369,7 +385,7 @@ export function createProfileRoutes(profileStore: ProfileStore, deviceStore: Dev
         }
       }
 
-      if (body.saveToFlash) {
+      if (body.saveToFlash === true) {
         const flashResult = await devicePut(device, "/v1/configs:save_to_flash");
         if ("error" in flashResult) {
           errors.push(`save_to_flash: ${flashResult.error}`);
@@ -390,6 +406,10 @@ export function createProfileRoutes(profileStore: ProfileStore, deviceStore: Dev
 
       if (!againstId && !deviceId) {
         return c.json({ error: "Query parameter 'against' or 'deviceId' is required" }, 400);
+      }
+
+      if (againstId && deviceId) {
+        return c.json({ error: "Provide either 'against' or 'deviceId', not both" }, 400);
       }
 
       let rightConfig: Record<string, Record<string, string | number>>;
