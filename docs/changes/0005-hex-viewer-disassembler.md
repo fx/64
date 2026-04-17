@@ -5,7 +5,7 @@
 Add a client-side hex viewer with editable bytes and a synchronized 6502 disassembler panel, providing a memory browser UI for the device dashboard.
 
 **Spec:** [Developer Tools](../specs/developer-tools/)
-**Status:** draft
+**Status:** implemented
 **Depends On:** 0004
 
 ## Motivation
@@ -88,25 +88,25 @@ The system SHOULD display a PETSCII screen preview from screen RAM.
 
 ## Tasks
 
-- [ ] Create 6502 disassembler in src/client/lib/disassembler.ts
-  - [ ] Opcode table (151 official + ~20 common undocumented)
-  - [ ] Addressing mode decoding
-  - [ ] Instruction formatting with hex addresses
-- [ ] Create hex viewer component
-  - [ ] Virtual-scrolled grid (address + 16 hex bytes + ASCII)
-  - [ ] Click-to-edit bytes
-  - [ ] Address navigation (jump to address input)
-  - [ ] Highlight on hover/selection
-- [ ] Create disassembly panel component
-  - [ ] Synchronized scroll with hex viewer
-  - [ ] Instruction highlighting by category (load/store, branch, etc.)
-- [ ] Create screen viewer component
-  - [ ] 40x25 PETSCII grid from $0400 data
-  - [ ] Color RAM support (if available)
-- [ ] Create memory browser route and hooks
-  - [ ] useMemoryRead(deviceId, address, length)
-  - [ ] useMemoryWrite(deviceId) mutation
-- [ ] Write tests for disassembler (opcode coverage)
+- [x] Create 6502 disassembler in src/client/lib/disassembler.ts
+  - [x] Opcode table (151 official + ~20 common undocumented)
+  - [x] Addressing mode decoding
+  - [x] Instruction formatting with hex addresses
+- [x] Create hex viewer component
+  - [x] Virtual-scrolled grid (address + 16 hex bytes + ASCII)
+  - [x] Click-to-edit bytes
+  - [x] Address navigation (jump to address input)
+  - [x] Highlight on hover/selection
+- [x] Create disassembly panel component
+  - [x] Synchronized scroll with hex viewer
+  - [x] Instruction highlighting by category (load/store, branch, etc.)
+- [x] Create screen viewer component
+  - [x] 40x25 PETSCII grid from $0400 data
+  - [x] Color RAM support (if available)
+- [x] Create memory browser route and hooks
+  - [x] useMemoryRead(deviceId, address, length)
+  - [x] useMemoryWrite(deviceId) mutation
+- [x] Write tests for disassembler (opcode coverage)
 
 ## Open Questions
 
