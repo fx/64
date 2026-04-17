@@ -123,6 +123,16 @@ function DeviceDashboardPage() {
           </div>
 
           <div className="mt-[1em]">
+            <Link
+              to="/devices/$deviceId/memory"
+              params={{ deviceId }}
+              className="c64-button inline-block no-underline"
+            >
+              MEMORY BROWSER
+            </Link>
+          </div>
+
+          <div className="mt-[1em]">
             {!showFileBrowser && (
               <C64Button onClick={() => setShowFileBrowser(true)}>
                 BROWSE FILES

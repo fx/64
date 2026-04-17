@@ -14,6 +14,7 @@ import { Route as PlaylistsIndexRouteImport } from './routes/playlists/index'
 import { Route as MacrosIndexRouteImport } from './routes/macros/index'
 import { Route as CollectionsIndexRouteImport } from './routes/collections/index'
 import { Route as DevicesDeviceIdRouteImport } from './routes/devices/$deviceId'
+import { Route as DevicesDeviceIdMemoryRouteImport } from './routes/devices_.$deviceId.memory'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,11 @@ const DevicesDeviceIdRoute = DevicesDeviceIdRouteImport.update({
   path: '/devices/$deviceId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevicesDeviceIdMemoryRoute = DevicesDeviceIdMemoryRouteImport.update({
+  id: '/devices_/$deviceId/memory',
+  path: '/devices/$deviceId/memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/collections/': typeof CollectionsIndexRoute
   '/macros/': typeof MacrosIndexRoute
   '/playlists/': typeof PlaylistsIndexRoute
+  '/devices/$deviceId/memory': typeof DevicesDeviceIdMemoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/collections': typeof CollectionsIndexRoute
   '/macros': typeof MacrosIndexRoute
   '/playlists': typeof PlaylistsIndexRoute
+  '/devices/$deviceId/memory': typeof DevicesDeviceIdMemoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,6 +70,7 @@ export interface FileRoutesById {
   '/collections/': typeof CollectionsIndexRoute
   '/macros/': typeof MacrosIndexRoute
   '/playlists/': typeof PlaylistsIndexRoute
+  '/devices_/$deviceId/memory': typeof DevicesDeviceIdMemoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -71,8 +80,15 @@ export interface FileRouteTypes {
     | '/collections/'
     | '/macros/'
     | '/playlists/'
+    | '/devices/$deviceId/memory'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/devices/$deviceId' | '/collections' | '/macros' | '/playlists'
+  to:
+    | '/'
+    | '/devices/$deviceId'
+    | '/collections'
+    | '/macros'
+    | '/playlists'
+    | '/devices/$deviceId/memory'
   id:
     | '__root__'
     | '/'
@@ -80,6 +96,7 @@ export interface FileRouteTypes {
     | '/collections/'
     | '/macros/'
     | '/playlists/'
+    | '/devices_/$deviceId/memory'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -88,6 +105,7 @@ export interface RootRouteChildren {
   CollectionsIndexRoute: typeof CollectionsIndexRoute
   MacrosIndexRoute: typeof MacrosIndexRoute
   PlaylistsIndexRoute: typeof PlaylistsIndexRoute
+  DevicesDeviceIdMemoryRoute: typeof DevicesDeviceIdMemoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -127,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevicesDeviceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/devices_/$deviceId/memory': {
+      id: '/devices_/$deviceId/memory'
+      path: '/devices/$deviceId/memory'
+      fullPath: '/devices/$deviceId/memory'
+      preLoaderRoute: typeof DevicesDeviceIdMemoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -136,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   CollectionsIndexRoute: CollectionsIndexRoute,
   MacrosIndexRoute: MacrosIndexRoute,
   PlaylistsIndexRoute: PlaylistsIndexRoute,
+  DevicesDeviceIdMemoryRoute: DevicesDeviceIdMemoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
