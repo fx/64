@@ -1,11 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { C64Box } from "../components/ui/c64-box.tsx";
 import { C64Button } from "../components/ui/c64-button.tsx";
 import { HexViewer } from "../components/dev/hex-viewer.tsx";
 import { DisassemblyPanel } from "../components/dev/disassembly-panel.tsx";
 import { ScreenViewer } from "../components/dev/screen-viewer.tsx";
+import { SnapshotManager } from "../components/dev/snapshot-manager.tsx";
 import { useMemoryRead, useMemoryWrite } from "../hooks/use-memory.ts";
+import { useSnapshotDiff } from "../hooks/use-snapshots.ts";
 import { useDevice } from "../hooks/use-device-info.ts";
 import { useToast } from "../components/ui/toast-context.tsx";
 
@@ -25,8 +27,27 @@ function MemoryBrowserPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [scrollOffset, setScrollOffset] = useState(0);
 
+  // Snapshot diff state
+  const [diffSnapshotA, setDiffSnapshotA] = useState<string | null>(null);
+  const [diffSnapshotB, setDiffSnapshotB] = useState<string | null>(null);
+
   const memory = useMemoryRead(deviceId, baseAddress, readLength);
   const writeMem = useMemoryWrite(deviceId);
+  const snapshotDiff = useSnapshotDiff(deviceId, diffSnapshotA, diffSnapshotB);
+
+  // Build diff offsets set for the hex viewer (relative to current baseAddress)
+  const diffOffsets = useMemo(() => {
+    if (!snapshotDiff.data) return null;
+    const offsets = new Set<number>();
+    for (const offset of snapshotDiff.data.offsets) {
+      // Convert absolute offset to relative offset within current view
+      const relative = offset - baseAddress;
+      if (relative >= 0 && relative < readLength) {
+        offsets.add(relative);
+      }
+    }
+    return offsets.size > 0 ? offsets : null;
+  }, [snapshotDiff.data, baseAddress, readLength]);
 
   const handleByteEdit = useCallback(
     (address: number, value: number) => {
@@ -51,6 +72,19 @@ function MemoryBrowserPage() {
     },
     [],
   );
+
+  const handleCompare = useCallback(
+    (snapshotId: string, againstId: string) => {
+      setDiffSnapshotA(snapshotId);
+      setDiffSnapshotB(againstId);
+    },
+    [],
+  );
+
+  const handleClearDiff = useCallback(() => {
+    setDiffSnapshotA(null);
+    setDiffSnapshotB(null);
+  }, []);
 
   const presetRanges = [
     { label: "ZERO PAGE", addr: 0x0000, len: 256 },
@@ -141,6 +175,23 @@ function MemoryBrowserPage() {
         </div>
       </C64Box>
 
+      {/* Diff status bar */}
+      {snapshotDiff.data && (
+        <div className="mt-[1em]">
+          <C64Box title="DIFF ACTIVE">
+            <div className="flex items-center gap-[1ch]">
+              <span className="text-c64-2-red">
+                {snapshotDiff.data.changedBytes} BYTES CHANGED
+                ({((snapshotDiff.data.changedBytes / snapshotDiff.data.totalBytes) * 100).toFixed(1)}%)
+              </span>
+              <C64Button onClick={handleClearDiff} className="p-[0.25em_0.5em]">
+                CLEAR
+              </C64Button>
+            </div>
+          </C64Box>
+        </div>
+      )}
+
       {/* Error display */}
       {memory.isError && (
         <div className="mt-[1em]">
@@ -153,61 +204,74 @@ function MemoryBrowserPage() {
       )}
 
       {/* Content area */}
-      <div className="mt-[1em]">
-        {viewMode === "hex" && (
-          <C64Box title="HEX VIEW" width={78}>
-            <HexViewer
-              data={memory.data}
-              baseAddress={baseAddress}
-              onByteEdit={handleByteEdit}
-              scrollOffset={scrollOffset}
-              onScrollOffset={setScrollOffset}
-            />
-          </C64Box>
-        )}
+      <div className="mt-[1em] flex gap-[1ch]">
+        <div className="flex-1">
+          {viewMode === "hex" && (
+            <C64Box title="HEX VIEW" width={78}>
+              <HexViewer
+                data={memory.data}
+                baseAddress={baseAddress}
+                onByteEdit={handleByteEdit}
+                scrollOffset={scrollOffset}
+                onScrollOffset={setScrollOffset}
+                diffOffsets={diffOffsets}
+              />
+            </C64Box>
+          )}
 
-        {viewMode === "disasm" && (
-          <C64Box title="DISASSEMBLY" width={40}>
-            <DisassemblyPanel
-              data={memory.data}
-              baseAddress={baseAddress}
-              scrollOffset={scrollOffset}
-              onScrollOffset={setScrollOffset}
-            />
-          </C64Box>
-        )}
+          {viewMode === "disasm" && (
+            <C64Box title="DISASSEMBLY" width={40}>
+              <DisassemblyPanel
+                data={memory.data}
+                baseAddress={baseAddress}
+                scrollOffset={scrollOffset}
+                onScrollOffset={setScrollOffset}
+              />
+            </C64Box>
+          )}
 
-        {viewMode === "split" && (
-          <div className="flex gap-[1ch]">
-            <div className="flex-1">
-              <C64Box title="HEX VIEW" width={58}>
-                <HexViewer
-                  data={memory.data}
-                  baseAddress={baseAddress}
-                  onByteEdit={handleByteEdit}
-                  scrollOffset={scrollOffset}
-                  onScrollOffset={setScrollOffset}
-                />
-              </C64Box>
+          {viewMode === "split" && (
+            <div className="flex gap-[1ch]">
+              <div className="flex-1">
+                <C64Box title="HEX VIEW" width={58}>
+                  <HexViewer
+                    data={memory.data}
+                    baseAddress={baseAddress}
+                    onByteEdit={handleByteEdit}
+                    scrollOffset={scrollOffset}
+                    onScrollOffset={setScrollOffset}
+                    diffOffsets={diffOffsets}
+                  />
+                </C64Box>
+              </div>
+              <div className="flex-1">
+                <C64Box title="DISASSEMBLY" width={36}>
+                  <DisassemblyPanel
+                    data={memory.data}
+                    baseAddress={baseAddress}
+                    scrollOffset={scrollOffset}
+                    onScrollOffset={setScrollOffset}
+                  />
+                </C64Box>
+              </div>
             </div>
-            <div className="flex-1">
-              <C64Box title="DISASSEMBLY" width={36}>
-                <DisassemblyPanel
-                  data={memory.data}
-                  baseAddress={baseAddress}
-                  scrollOffset={scrollOffset}
-                  onScrollOffset={setScrollOffset}
-                />
-              </C64Box>
-            </div>
-          </div>
-        )}
+          )}
 
-        {viewMode === "screen" && (
-          <C64Box title="SCREEN VIEWER ($0400)" width={44}>
-            <ScreenViewer data={memory.data} baseAddress={baseAddress} />
-          </C64Box>
-        )}
+          {viewMode === "screen" && (
+            <C64Box title="SCREEN VIEWER ($0400)" width={44}>
+              <ScreenViewer data={memory.data} baseAddress={baseAddress} />
+            </C64Box>
+          )}
+        </div>
+
+        {/* Snapshot manager sidebar */}
+        <div className="w-[40ch]">
+          <SnapshotManager
+            deviceId={deviceId}
+            onCompare={handleCompare}
+            onClearDiff={handleClearDiff}
+          />
+        </div>
       </div>
 
       {/* Write status */}
