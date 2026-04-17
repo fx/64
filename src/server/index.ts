@@ -38,7 +38,7 @@ const fileRoutes = createFileRoutes(store);
 const collectionRoutes = createCollectionRoutes(collectionStore, store);
 const macroRoutes = createMacroRoutes(macroStore, macroEngine, store);
 const playlistRoutes = createPlaylistRoutes(playlistStore, playbackStateManager, store);
-const profileRoutes = createProfileRoutes(profileStore);
+const profileRoutes = createProfileRoutes(profileStore, store);
 const memoryRoutes = createMemoryRoutes(store);
 const proxyRoutes = createProxyRoutes(store);
 

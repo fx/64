@@ -184,6 +184,26 @@ export interface ConfigProfile {
   updatedAt: string;
 }
 
+export interface ConfigDiffEntry {
+  category: string;
+  item: string;
+  left: string | number;
+  right: string | number;
+}
+
+export interface ConfigDiffOnlyEntry {
+  category: string;
+  item: string;
+  value: string | number;
+}
+
+export interface ConfigDiff {
+  changes: ConfigDiffEntry[];
+  leftOnly: ConfigDiffOnlyEntry[];
+  rightOnly: ConfigDiffOnlyEntry[];
+  identicalCount: number;
+}
+
 // ── Macro Events ────────────────────────────────────
 
 export type MacroEventType = "macro:step" | "macro:complete" | "macro:failed";

@@ -5,7 +5,7 @@
 Add endpoints to capture a device's current configuration as a profile, apply a saved profile to a device, and diff two profiles or a profile against a device's live config.
 
 **Spec:** [Config Profiles](../specs/config-profiles/)
-**Status:** draft
+**Status:** implemented
 **Depends On:** 0001
 
 ## Motivation
@@ -111,21 +111,21 @@ Add new route handlers to the existing profiles route file:
 
 ## Tasks
 
-- [ ] Add ConfigDiff type to src/shared/types.ts
-- [ ] Implement capture endpoint: POST /api/profiles/capture
-  - [ ] Fetch config categories from device
-  - [ ] Fetch items for each category
-  - [ ] Assemble and save as new profile
-- [ ] Implement apply endpoint: POST /api/profiles/:id/apply
-  - [ ] Load profile, resolve device
-  - [ ] Set each config item via proxy
-  - [ ] Optional save_to_flash call
-- [ ] Implement diff endpoint: GET /api/profiles/:id/diff
-  - [ ] Support ?against=:otherId (profile vs profile)
-  - [ ] Support ?deviceId=:id (profile vs live device)
-- [ ] Implement export: GET /api/profiles/:id/export
-- [ ] Implement import: POST /api/profiles/import
-- [ ] Write tests for capture, apply, diff, import, export
+- [x] Add ConfigDiff type to src/shared/types.ts
+- [x] Implement capture endpoint: POST /api/profiles/capture
+  - [x] Fetch config categories from device
+  - [x] Fetch items for each category
+  - [x] Assemble and save as new profile
+- [x] Implement apply endpoint: POST /api/profiles/:id/apply
+  - [x] Load profile, resolve device
+  - [x] Set each config item via query param PUT
+  - [x] Optional save_to_flash call
+- [x] Implement diff endpoint: GET /api/profiles/:id/diff
+  - [x] Support ?against=:otherId (profile vs profile)
+  - [x] Support ?deviceId=:id (profile vs live device)
+- [x] Implement export: GET /api/profiles/:id/export
+- [x] Implement import: POST /api/profiles/import
+- [x] Write tests for capture, apply, diff, import, export (71 tests)
 
 ## Open Questions
 

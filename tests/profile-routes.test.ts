@@ -4,6 +4,7 @@ import { existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ProfileStore } from "../src/server/lib/profile-store.ts";
+import { DeviceStore } from "../src/server/lib/device-store.ts";
 import { createProfileRoutes } from "../src/server/routes/profiles.ts";
 
 function makeConfig(): Record<string, Record<string, string | number>> {
@@ -13,25 +14,30 @@ function makeConfig(): Record<string, Record<string, string | number>> {
   };
 }
 
-function createApp(profileStore: ProfileStore) {
+function createApp(profileStore: ProfileStore, deviceStore: DeviceStore) {
   return new Hono()
     .basePath("/api")
-    .route("/", createProfileRoutes(profileStore));
+    .route("/", createProfileRoutes(profileStore, deviceStore));
 }
 
 describe("Profile CRUD routes", () => {
   let dataPath: string;
+  let devDataPath: string;
   let profileStore: ProfileStore;
+  let deviceStore: DeviceStore;
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
     dataPath = join(tmpdir(), `prof-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+    devDataPath = join(tmpdir(), `dev-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
     profileStore = new ProfileStore(dataPath);
-    app = createApp(profileStore);
+    deviceStore = new DeviceStore(devDataPath);
+    app = createApp(profileStore, deviceStore);
   });
 
   afterEach(() => {
     if (existsSync(dataPath)) unlinkSync(dataPath);
+    if (existsSync(devDataPath)) unlinkSync(devDataPath);
   });
 
   // ── GET /api/profiles ──────────────────────────────
