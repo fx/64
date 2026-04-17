@@ -6,6 +6,10 @@ import type { Device } from "@shared/types.ts";
 const CHUNK_SIZE = 256;
 const AUTO_PAUSE_THRESHOLD = 4096;
 const DEVICE_TIMEOUT_MS = 5000;
+const WRITEMEM_URL_MAX_BYTES = 128;
+
+const HEX_PATTERN = /^[0-9a-fA-F]{1,4}$/;
+const DECIMAL_PATTERN = /^[0-9]+$/;
 
 function deviceUrl(device: Device, path: string): string {
   return `http://${device.ip}:${device.port}${path}`;
@@ -18,12 +22,16 @@ function deviceHeaders(device: Device): Record<string, string> {
 }
 
 async function deviceFetch(device: Device, path: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  for (const [key, value] of Object.entries(deviceHeaders(device))) {
+    headers.set(key, value);
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEVICE_TIMEOUT_MS);
   try {
     return await fetch(deviceUrl(device, path), {
       ...init,
-      headers: { ...deviceHeaders(device), ...init?.headers },
+      headers,
       signal: controller.signal,
     });
   } finally {
@@ -31,19 +39,39 @@ async function deviceFetch(device: Device, path: string, init?: RequestInit): Pr
   }
 }
 
+function proxyError(c: Context, message: string, status: number) {
+  return c.json({ errors: [message], proxy_error: true as const }, status);
+}
+
+function mapDeviceError(c: Context, err: unknown): Response {
+  if (err instanceof DOMException && err.name === "AbortError") {
+    return proxyError(c, "Device did not respond", 504);
+  }
+  const message = err instanceof Error ? err.message : "Device request failed";
+  return proxyError(c, message, 502);
+}
+
 /** Read a single chunk of memory from the device */
 async function readChunk(device: Device, address: number, length: number): Promise<Uint8Array> {
   const addr = address.toString(16).toUpperCase().padStart(4, "0");
   const res = await deviceFetch(device, `/v1/machine:readmem?address=${addr}&length=${length}`);
+  if (res.status === 403) {
+    throw new AuthError();
+  }
   if (!res.ok) {
     throw new Error(`readmem failed at $${addr}: HTTP ${res.status}`);
   }
   return new Uint8Array(await res.arrayBuffer());
 }
 
+class AuthError extends Error {
+  constructor() { super("Authentication failed — check device password"); }
+}
+
 /** Pause the device CPU */
 async function pauseCpu(device: Device): Promise<void> {
   const res = await deviceFetch(device, "/v1/machine:pause", { method: "PUT" });
+  if (res.status === 403) throw new AuthError();
   if (!res.ok) {
     throw new Error(`Failed to pause CPU: HTTP ${res.status}`);
   }
@@ -62,8 +90,8 @@ export function createMemoryRoutes(store: DeviceStore) {
 
   function resolveDevice(c: Context): Device | Response {
     const device = store.get(c.req.param("deviceId"));
-    if (!device) return c.json({ errors: ["Device not found"], proxy_error: true as const }, 404);
-    if (!device.online) return c.json({ errors: ["Device is offline"], proxy_error: true as const }, 503);
+    if (!device) return proxyError(c, "Device not found", 404);
+    if (!device.online) return proxyError(c, "Device is offline", 503);
     return device;
   }
 
@@ -79,13 +107,20 @@ export function createMemoryRoutes(store: DeviceStore) {
       return c.json({ errors: ["address and length query parameters are required"] }, 400);
     }
 
+    if (!HEX_PATTERN.test(addressParam)) {
+      return c.json({ errors: ["address must be a valid hex value (0000-FFFF)"] }, 400);
+    }
+    if (!DECIMAL_PATTERN.test(lengthParam)) {
+      return c.json({ errors: ["length must be between 1 and 65536"] }, 400);
+    }
+
     const address = parseInt(addressParam, 16);
     const length = parseInt(lengthParam, 10);
 
-    if (isNaN(address) || address < 0 || address > 0xFFFF) {
+    if (address < 0 || address > 0xFFFF) {
       return c.json({ errors: ["address must be a valid hex value (0000-FFFF)"] }, 400);
     }
-    if (isNaN(length) || length < 1 || length > 65536) {
+    if (length < 1 || length > 65536) {
       return c.json({ errors: ["length must be between 1 and 65536"] }, 400);
     }
     if (address + length > 0x10000) {
@@ -122,8 +157,10 @@ export function createMemoryRoutes(store: DeviceStore) {
       if (needsPause) {
         try { await resumeCpu(device); } catch { /* ignore resume error */ }
       }
-      const message = err instanceof Error ? err.message : "Memory read failed";
-      return c.json({ errors: [message], proxy_error: true as const }, 502);
+      if (err instanceof AuthError) {
+        return proxyError(c, err.message, 403);
+      }
+      return mapDeviceError(c, err);
     }
   });
 
@@ -143,8 +180,12 @@ export function createMemoryRoutes(store: DeviceStore) {
       return c.json({ errors: ["address and data fields are required"] }, 400);
     }
 
+    if (!HEX_PATTERN.test(body.address)) {
+      return c.json({ errors: ["address must be a valid hex value (0000-FFFF)"] }, 400);
+    }
+
     const address = parseInt(body.address, 16);
-    if (isNaN(address) || address < 0 || address > 0xFFFF) {
+    if (address < 0 || address > 0xFFFF) {
       return c.json({ errors: ["address must be a valid hex value (0000-FFFF)"] }, 400);
     }
 
@@ -157,21 +198,32 @@ export function createMemoryRoutes(store: DeviceStore) {
       return c.json({ errors: ["address + data length exceeds 64KB address space"] }, 400);
     }
 
-    try {
-      const res = await deviceFetch(device, `/v1/machine:writemem?address=${body.address.toUpperCase()}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/binary" },
-        body: hexToBytes(body.data),
-      });
+    const normalizedAddress = body.address.toUpperCase();
+    const normalizedData = body.data.toUpperCase();
 
+    try {
+      const res = byteLength <= WRITEMEM_URL_MAX_BYTES
+        ? await deviceFetch(
+            device,
+            `/v1/machine:writemem?address=${normalizedAddress}&data=${normalizedData}`,
+            { method: "PUT" },
+          )
+        : await deviceFetch(device, `/v1/machine:writemem?address=${normalizedAddress}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/octet-stream" },
+            body: hexToBytes(body.data),
+          });
+
+      if (res.status === 403) {
+        return proxyError(c, "Authentication failed — check device password", 403);
+      }
       if (!res.ok) {
-        return c.json({ errors: [`writemem failed: HTTP ${res.status}`], proxy_error: true as const }, 502);
+        return proxyError(c, `writemem failed: HTTP ${res.status}`, 502);
       }
 
-      return c.json({ ok: true, address: body.address.toUpperCase(), bytes: byteLength });
+      return c.json({ ok: true, address: normalizedAddress, bytes: byteLength });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Memory write failed";
-      return c.json({ errors: [message], proxy_error: true as const }, 502);
+      return mapDeviceError(c, err);
     }
   });
 

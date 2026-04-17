@@ -28,6 +28,13 @@ function makeDevice(overrides: Partial<Device> = {}): Device {
   };
 }
 
+/** Extract URL string from fetch input */
+function extractUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof Request) return input.url;
+  return input.toString();
+}
+
 describe("Memory Routes", () => {
   let dataPath: string;
   let store: DeviceStore;
@@ -87,6 +94,20 @@ describe("Memory Routes", () => {
     expect(body.errors[0]).toContain("valid hex");
   });
 
+  it("returns 400 for partially-valid hex address like 12ZZ", async () => {
+    store.upsert(makeDevice());
+    const res = await app.request("/api/devices/ABC123/memory?address=12ZZ&length=16");
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.errors[0]).toContain("valid hex");
+  });
+
+  it("returns 400 for address longer than 4 hex digits", async () => {
+    store.upsert(makeDevice());
+    const res = await app.request("/api/devices/ABC123/memory?address=12345&length=16");
+    expect(res.status).toBe(400);
+  });
+
   it("returns 400 when length is 0", async () => {
     store.upsert(makeDevice());
     const res = await app.request("/api/devices/ABC123/memory?address=0400&length=0");
@@ -133,10 +154,8 @@ describe("Memory Routes", () => {
     const totalLength = 512;
     let fetchCount = 0;
 
-    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+    globalThis.fetch = mock(async () => {
       fetchCount++;
-      // Return chunk filled with the chunk index
       const chunk = new Uint8Array(256).fill(fetchCount);
       return new Response(chunk, { headers: { "content-type": "application/octet-stream" } });
     }) as typeof fetch;
@@ -145,9 +164,7 @@ describe("Memory Routes", () => {
     expect(res.status).toBe(200);
     const result = new Uint8Array(await res.arrayBuffer());
     expect(result.length).toBe(totalLength);
-    // 512 bytes / 256 chunk = 2 fetch calls
     expect(fetchCount).toBe(2);
-    // First 256 bytes filled with 1, next 256 with 2
     expect(result[0]).toBe(1);
     expect(result[255]).toBe(1);
     expect(result[256]).toBe(2);
@@ -160,7 +177,7 @@ describe("Memory Routes", () => {
     const lengths: number[] = [];
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+      const url = extractUrl(input);
       const parsed = new URL(url);
       lengths.push(parseInt(parsed.searchParams.get("length") || "0", 10));
       fetchCount++;
@@ -174,7 +191,6 @@ describe("Memory Routes", () => {
     expect(res.status).toBe(200);
     const result = new Uint8Array(await res.arrayBuffer());
     expect(result.length).toBe(300);
-    // Should be 2 chunks: 256 + 44
     expect(fetchCount).toBe(2);
     expect(lengths).toEqual([256, 44]);
   });
@@ -185,8 +201,8 @@ describe("Memory Routes", () => {
     store.upsert(makeDevice());
     const calls: string[] = [];
 
-    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = extractUrl(input);
       if (url.includes("machine:pause")) {
         calls.push("pause");
         return new Response("", { status: 200 });
@@ -206,18 +222,14 @@ describe("Memory Routes", () => {
       return new Response("", { status: 404 });
     }) as typeof fetch;
 
-    // 4097 bytes > 4096 threshold
     const res = await app.request("/api/devices/ABC123/memory?address=0000&length=4097");
     expect(res.status).toBe(200);
     const result = new Uint8Array(await res.arrayBuffer());
     expect(result.length).toBe(4097);
 
-    // Should start with pause, end with resume
     expect(calls[0]).toBe("pause");
     expect(calls[calls.length - 1]).toBe("resume");
-    // All middle calls should be readmem
     const readmemCalls = calls.filter((c) => c === "readmem");
-    // 4097 / 256 = 17 chunks (16 full + 1 partial)
     expect(readmemCalls.length).toBe(17);
   });
 
@@ -226,7 +238,7 @@ describe("Memory Routes", () => {
     const calls: string[] = [];
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+      const url = extractUrl(input);
       if (url.includes("machine:pause")) calls.push("pause");
       if (url.includes("machine:resume")) calls.push("resume");
       if (url.includes("machine:readmem")) {
@@ -240,7 +252,6 @@ describe("Memory Routes", () => {
       return new Response("", { status: 200 });
     }) as typeof fetch;
 
-    // Exactly 4096 — at the threshold, not over
     const res = await app.request("/api/devices/ABC123/memory?address=0000&length=4096");
     expect(res.status).toBe(200);
     expect(calls).not.toContain("pause");
@@ -253,7 +264,7 @@ describe("Memory Routes", () => {
     let resumed = false;
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+      const url = extractUrl(input);
       if (url.includes("machine:pause")) return new Response("", { status: 200 });
       if (url.includes("machine:resume")) {
         resumed = true;
@@ -273,7 +284,6 @@ describe("Memory Routes", () => {
 
     const res = await app.request("/api/devices/ABC123/memory?address=0000&length=8192");
     expect(res.status).toBe(502);
-    // CPU should have been resumed despite the error
     expect(resumed).toBe(true);
   });
 
@@ -284,7 +294,7 @@ describe("Memory Routes", () => {
     const calls: string[] = [];
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+      const url = extractUrl(input);
       if (url.includes("machine:pause")) {
         calls.push("pause");
         return new Response("", { status: 200 });
@@ -308,10 +318,8 @@ describe("Memory Routes", () => {
     expect(res.status).toBe(200);
     const result = new Uint8Array(await res.arrayBuffer());
     expect(result.length).toBe(65536);
-    // Should pause + resume for >4KB
     expect(calls[0]).toBe("pause");
     expect(calls[calls.length - 1]).toBe("resume");
-    // 65536 / 256 = 256 readmem calls
     expect(calls.filter((c) => c === "readmem").length).toBe(256);
   });
 
@@ -319,7 +327,7 @@ describe("Memory Routes", () => {
     store.upsert(makeDevice());
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+      const url = extractUrl(input);
       if (url.includes("machine:pause")) {
         return new Response("error", { status: 500 });
       }
@@ -350,6 +358,34 @@ describe("Memory Routes", () => {
     expect(body.proxy_error).toBe(true);
   });
 
+  it("returns 504 on timeout for reads", async () => {
+    store.upsert(makeDevice());
+
+    globalThis.fetch = mock(async () => {
+      throw new DOMException("The operation was aborted", "AbortError");
+    }) as typeof fetch;
+
+    const res = await app.request("/api/devices/ABC123/memory?address=0400&length=16");
+    expect(res.status).toBe(504);
+    const body = await res.json();
+    expect(body.errors[0]).toContain("did not respond");
+    expect(body.proxy_error).toBe(true);
+  });
+
+  it("returns 403 when device returns auth error on read", async () => {
+    store.upsert(makeDevice());
+
+    globalThis.fetch = mock(async () =>
+      new Response("Forbidden", { status: 403 }),
+    ) as typeof fetch;
+
+    const res = await app.request("/api/devices/ABC123/memory?address=0400&length=16");
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.errors[0]).toContain("Authentication");
+    expect(body.proxy_error).toBe(true);
+  });
+
   // ── GET — address forwarding ──
 
   it("forwards correct hex address to device", async () => {
@@ -357,7 +393,7 @@ describe("Memory Routes", () => {
     let capturedUrl = "";
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+      const url = extractUrl(input);
       if (url.includes("readmem")) capturedUrl = url;
       return new Response(new Uint8Array(16), {
         headers: { "content-type": "application/octet-stream" },
@@ -374,7 +410,7 @@ describe("Memory Routes", () => {
     let capturedUrl = "";
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
+      const url = extractUrl(input);
       if (url.includes("readmem")) capturedUrl = url;
       return new Response(new Uint8Array(1), {
         headers: { "content-type": "application/octet-stream" },
@@ -391,7 +427,7 @@ describe("Memory Routes", () => {
     store.upsert(makeDevice({ password: "secret123" }));
     let capturedHeaders: Headers | null = null;
 
-    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.headers) {
         capturedHeaders = new Headers(init.headers as HeadersInit);
       }
@@ -474,6 +510,18 @@ describe("Memory Routes", () => {
     expect(body.errors[0]).toContain("valid hex");
   });
 
+  it("returns 400 for partially-valid hex address in write like 12ZZ", async () => {
+    store.upsert(makeDevice());
+    const res = await app.request("/api/devices/ABC123/memory", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: "12ZZ", data: "FF" }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.errors[0]).toContain("valid hex");
+  });
+
   it("returns 400 for odd-length hex data in write", async () => {
     store.upsert(makeDevice());
     const res = await app.request("/api/devices/ABC123/memory", {
@@ -500,7 +548,6 @@ describe("Memory Routes", () => {
 
   it("returns 400 when write data exceeds 64KB boundary", async () => {
     store.upsert(makeDevice());
-    // Address FFFF + 2 bytes = overflow
     const res = await app.request("/api/devices/ABC123/memory", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -511,19 +558,16 @@ describe("Memory Routes", () => {
     expect(body.errors[0]).toContain("exceeds");
   });
 
-  // ── PUT /devices/:deviceId/memory — successful write ──
+  // ── PUT /devices/:deviceId/memory — small write (<=128 bytes, PUT with data= in URL) ──
 
-  it("writes memory successfully", async () => {
+  it("writes small data via PUT with hex data in URL", async () => {
     store.upsert(makeDevice());
     let capturedUrl = "";
-    let capturedBody: Uint8Array | null = null;
+    let capturedMethod = "";
 
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
-      capturedUrl = url;
-      if (init?.body) {
-        capturedBody = new Uint8Array(init.body as ArrayBuffer);
-      }
+      capturedUrl = extractUrl(input);
+      capturedMethod = init?.method || "GET";
       return new Response(JSON.stringify({ errors: [] }), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -542,9 +586,77 @@ describe("Memory Routes", () => {
     expect(body.address).toBe("0400");
     expect(body.bytes).toBe(5);
 
+    // Small write: PUT with data= in URL
+    expect(capturedMethod).toBe("PUT");
     expect(capturedUrl).toContain("machine:writemem");
     expect(capturedUrl).toContain("address=0400");
-    expect(capturedBody).toEqual(new Uint8Array([0x48, 0x45, 0x4C, 0x4C, 0x4F]));
+    expect(capturedUrl).toContain("data=48454C4C4F");
+  });
+
+  // ── PUT /devices/:deviceId/memory — large write (>128 bytes, POST with binary body) ──
+
+  it("writes large data via POST with binary body", async () => {
+    store.upsert(makeDevice());
+    let capturedUrl = "";
+    let capturedMethod = "";
+    let capturedBody: Uint8Array | null = null;
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      capturedUrl = extractUrl(input);
+      capturedMethod = init?.method || "GET";
+      if (init?.body) {
+        capturedBody = new Uint8Array(init.body as ArrayBuffer);
+      }
+      return new Response(JSON.stringify({ errors: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    // 129 bytes = 258 hex chars (exceeds 128-byte URL threshold)
+    const hexData = "AA".repeat(129);
+    const res = await app.request("/api/devices/ABC123/memory", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: "0400", data: hexData }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.bytes).toBe(129);
+
+    // Large write: POST with binary body
+    expect(capturedMethod).toBe("POST");
+    expect(capturedUrl).toContain("machine:writemem");
+    expect(capturedUrl).toContain("address=0400");
+    expect(capturedUrl).not.toContain("data=");
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody!.length).toBe(129);
+    expect(capturedBody![0]).toBe(0xAA);
+  });
+
+  it("uses PUT for exactly 128 bytes", async () => {
+    store.upsert(makeDevice());
+    let capturedMethod = "";
+
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedMethod = init?.method || "GET";
+      return new Response(JSON.stringify({ errors: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const hexData = "BB".repeat(128);
+    const res = await app.request("/api/devices/ABC123/memory", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: "0400", data: hexData }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(capturedMethod).toBe("PUT");
   });
 
   it("uppercases address in write response", async () => {
@@ -570,11 +682,11 @@ describe("Memory Routes", () => {
 
   it("sends X-Password header for writes", async () => {
     store.upsert(makeDevice({ password: "mypass" }));
-    let capturedHeaders: Record<string, string> = {};
+    let capturedHeaders: Headers | null = null;
 
-    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.headers) {
-        capturedHeaders = init.headers as Record<string, string>;
+        capturedHeaders = new Headers(init.headers as HeadersInit);
       }
       return new Response(JSON.stringify({ errors: [] }), {
         status: 200,
@@ -588,7 +700,8 @@ describe("Memory Routes", () => {
       body: JSON.stringify({ address: "0400", data: "FF" }),
     });
 
-    expect(capturedHeaders["X-Password"]).toBe("mypass");
+    expect(capturedHeaders).not.toBeNull();
+    expect(capturedHeaders!.get("X-Password")).toBe("mypass");
   });
 
   it("returns 502 when writemem device call fails", async () => {
@@ -625,6 +738,44 @@ describe("Memory Routes", () => {
 
     expect(res.status).toBe(502);
     const body = await res.json();
+    expect(body.proxy_error).toBe(true);
+  });
+
+  it("returns 504 on timeout for writes", async () => {
+    store.upsert(makeDevice());
+
+    globalThis.fetch = mock(async () => {
+      throw new DOMException("The operation was aborted", "AbortError");
+    }) as typeof fetch;
+
+    const res = await app.request("/api/devices/ABC123/memory", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: "0400", data: "FF" }),
+    });
+
+    expect(res.status).toBe(504);
+    const body = await res.json();
+    expect(body.errors[0]).toContain("did not respond");
+    expect(body.proxy_error).toBe(true);
+  });
+
+  it("returns 403 when device returns auth error on write", async () => {
+    store.upsert(makeDevice());
+
+    globalThis.fetch = mock(async () =>
+      new Response("Forbidden", { status: 403 }),
+    ) as typeof fetch;
+
+    const res = await app.request("/api/devices/ABC123/memory", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: "0400", data: "FF" }),
+    });
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.errors[0]).toContain("Authentication");
     expect(body.proxy_error).toBe(true);
   });
 });
