@@ -182,6 +182,44 @@ describe("Profile CRUD routes", () => {
     expect(data.error).toContain("string or number");
   });
 
+  it("POST /profiles returns 400 for non-string description", async () => {
+    const res = await app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Test", description: 123, config: {} }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("description");
+  });
+
+  it("POST /profiles returns 400 for non-string deviceProduct", async () => {
+    const res = await app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Test", deviceProduct: 42, config: {} }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("deviceProduct");
+  });
+
+  it("POST /profiles strips dangerous prototype keys from config", async () => {
+    const res = await app.request("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Test",
+        config: { "__proto__": { "polluted": "yes" }, "Audio": { "SID": "ReSID" } },
+      }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    const configKeys = Object.keys(data.config);
+    expect(configKeys).not.toContain("__proto__");
+    expect(data.config["Audio"]).toEqual({ "SID": "ReSID" });
+  });
+
   it("POST /profiles trims name", async () => {
     const res = await app.request("/api/profiles", {
       method: "POST",
@@ -300,6 +338,30 @@ describe("Profile CRUD routes", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.name).toBe("Trimmed");
+  });
+
+  it("PUT /profiles/:id returns 400 for non-string description", async () => {
+    const created = profileStore.create({ name: "Profile", config: makeConfig() });
+    const res = await app.request(`/api/profiles/${created.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: 999 }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("description");
+  });
+
+  it("PUT /profiles/:id returns 400 for non-string deviceProduct", async () => {
+    const created = profileStore.create({ name: "Profile", config: makeConfig() });
+    const res = await app.request(`/api/profiles/${created.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceProduct: true }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("deviceProduct");
   });
 
   it("PUT /profiles/:id returns 400 for invalid config", async () => {
