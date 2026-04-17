@@ -1,0 +1,106 @@
+# Documentation Index
+# Auto-updated by /spec-writer and /project-management skills
+
+specs:
+  - name: api-proxy
+    path: specs/api-proxy/
+    description: Transparent /v1/* proxy with CORS, auth injection, and typed routes
+    status: active
+  - name: architecture
+    path: specs/architecture/
+    description: Tech stack, project structure, build/dev/prod workflow, conventions
+    status: active
+  - name: c64-design-system
+    path: specs/c64-design-system/
+    description: VIC-II palette, C64 Pro Mono font, PETSCII, Tailwind, UI components
+    status: active
+  - name: config-profiles
+    path: specs/config-profiles/
+    description: Capture, apply, and diff device configuration profiles
+    status: active
+  - name: developer-tools
+    path: specs/developer-tools/
+    description: Memory browser, 6502 disassembler, snapshots, U64 stream viewer
+    status: active
+  - name: device-management
+    path: specs/device-management/
+    description: Device discovery, registration, scanning, health-check, persistence
+    status: active
+  - name: disk-collections
+    path: specs/disk-collections/
+    description: Multi-disk flip collections with position tracking
+    status: active
+  - name: file-browser
+    path: specs/file-browser/
+    description: FTP-backed file browser with upload, download, delete, and type detection
+    status: active
+  - name: jukebox
+    path: specs/jukebox/
+    description: SID/MOD playlists, playback control, and now-playing bar
+    status: active
+  - name: macros
+    path: specs/macros/
+    description: Automation macros with step engine, execution, and SSE progress
+    status: active
+  - name: realtime-events
+    path: specs/realtime-events/
+    description: SSE streaming, device polling, state caching, and event bus
+    status: active
+
+changes:
+  - id: "0001"
+    name: config-profile-crud
+    path: changes/0001-config-profile-crud.md
+    description: ProfileStore and CRUD API for configuration profiles
+    spec: config-profiles
+    status: draft
+    depends_on: []
+  - id: "0002"
+    name: config-capture-apply
+    path: changes/0002-config-capture-apply.md
+    description: Capture device config, apply profiles, diff, import/export
+    spec: config-profiles
+    status: draft
+    depends_on: ["0001"]
+  - id: "0003"
+    name: config-profile-ui
+    path: changes/0003-config-profile-ui.md
+    description: Profile manager page with capture, apply, and diff viewer
+    spec: config-profiles
+    status: draft
+    depends_on: ["0001", "0002"]
+  - id: "0004"
+    name: memory-read-write-api
+    path: changes/0004-memory-read-write-api.md
+    description: Memory read/write API with chunked reads and auto-pause
+    spec: developer-tools
+    status: draft
+    depends_on: []
+  - id: "0005"
+    name: hex-viewer-disassembler
+    path: changes/0005-hex-viewer-disassembler.md
+    description: Client-side hex viewer with editable bytes and 6502 disassembler
+    spec: developer-tools
+    status: draft
+    depends_on: ["0004"]
+  - id: "0006"
+    name: memory-snapshots
+    path: changes/0006-memory-snapshots.md
+    description: Full 64KB memory snapshots with persistence and visual diff
+    spec: developer-tools
+    status: draft
+    depends_on: ["0004", "0005"]
+  - id: "0007"
+    name: u64-stream-viewer
+    path: changes/0007-u64-stream-viewer.md
+    description: U64 video/audio stream relay via WebSocket with canvas rendering
+    spec: developer-tools
+    status: draft
+    depends_on: []
+  - id: "0008"
+    name: poller-per-endpoint-backoff
+    path: changes/0008-poller-per-endpoint-backoff.md
+    description: Fix DevicePoller to track backoff independently per endpoint
+    spec: realtime-events
+    status: draft
+    depends_on: []
