@@ -441,4 +441,181 @@ describe("DevicePoller", () => {
       expect(fetchCalls).toBeLessThanOrEqual(callsBeforeRemoval + 2);
     });
   });
+
+  describe("per-endpoint backoff", () => {
+    it("drives failure does not affect info interval", async () => {
+      store.upsert(makeDevice({ id: "DEV1" }));
+
+      const infoData = {
+        product: "U64", firmware_version: "3.12", fpga_version: "11F",
+        core_version: "1.0", hostname: "h", unique_id: "DEV1", errors: [],
+      };
+
+      let drivesCallCount = 0;
+      let infoCallCount = 0;
+
+      globalThis.fetch = mock((url: string | URL | Request) => {
+        const urlStr = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+        if (urlStr.includes("/v1/drives")) {
+          drivesCallCount++;
+          // Drives always fails
+          return Promise.reject(new Error("ECONNREFUSED"));
+        }
+        if (urlStr.includes("/v1/info")) {
+          infoCallCount++;
+          // Info always succeeds
+          return Promise.resolve(new Response(JSON.stringify(infoData), {
+            headers: { "content-type": "application/json" },
+          }));
+        }
+        return Promise.resolve(new Response("Not found", { status: 404 }));
+      }) as typeof fetch;
+
+      poller = new DevicePoller(store);
+
+      const events: DeviceStateEvent[] = [];
+      poller.onStateChange((event) => events.push(event));
+      poller.startPolling("DEV1");
+
+      // Wait for initial polls
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Info should have succeeded (emitted event) despite drives failing
+      const infoEvents = events.filter((e) => e.type === "state:info");
+      expect(infoEvents.length).toBe(1);
+
+      // Drives should have failed (no event emitted)
+      const driveEvents = events.filter((e) => e.type === "state:drives");
+      expect(driveEvents.length).toBe(0);
+
+      // Both endpoints were called
+      expect(drivesCallCount).toBeGreaterThanOrEqual(1);
+      expect(infoCallCount).toBeGreaterThanOrEqual(1);
+    });
+
+    it("info failure does not affect drives interval", async () => {
+      store.upsert(makeDevice({ id: "DEV1" }));
+
+      const drivesData = { drives: [{ a: { enabled: true, bus_id: 8, type: "1541" } }], errors: [] };
+
+      let drivesCallCount = 0;
+      let infoCallCount = 0;
+
+      globalThis.fetch = mock((url: string | URL | Request) => {
+        const urlStr = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+        if (urlStr.includes("/v1/drives")) {
+          drivesCallCount++;
+          // Drives always succeeds
+          return Promise.resolve(new Response(JSON.stringify(drivesData), {
+            headers: { "content-type": "application/json" },
+          }));
+        }
+        if (urlStr.includes("/v1/info")) {
+          infoCallCount++;
+          // Info always fails
+          return Promise.reject(new Error("ECONNREFUSED"));
+        }
+        return Promise.resolve(new Response("Not found", { status: 404 }));
+      }) as typeof fetch;
+
+      poller = new DevicePoller(store);
+
+      const events: DeviceStateEvent[] = [];
+      poller.onStateChange((event) => events.push(event));
+      poller.startPolling("DEV1");
+
+      // Wait for initial polls
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Drives should have succeeded (emitted event) despite info failing
+      const driveEvents = events.filter((e) => e.type === "state:drives");
+      expect(driveEvents.length).toBe(1);
+
+      // Info should have failed (no event emitted)
+      const infoEvents = events.filter((e) => e.type === "state:info");
+      expect(infoEvents.length).toBe(0);
+
+      // Both endpoints were called
+      expect(drivesCallCount).toBeGreaterThanOrEqual(1);
+      expect(infoCallCount).toBeGreaterThanOrEqual(1);
+    });
+
+    it("backoff reset is per-endpoint", async () => {
+      store.upsert(makeDevice({ id: "DEV1" }));
+
+      const drivesData = { drives: [{ a: { enabled: true, bus_id: 8, type: "1541" } }], errors: [] };
+      const infoData = {
+        product: "U64", firmware_version: "3.12", fpga_version: "11F",
+        core_version: "1.0", hostname: "h", unique_id: "DEV1", errors: [],
+      };
+
+      // Phase 1: Both fail (both backoffs increase)
+      globalThis.fetch = mock(() =>
+        Promise.reject(new Error("ECONNREFUSED"))
+      ) as typeof fetch;
+
+      poller = new DevicePoller(store);
+
+      const events: DeviceStateEvent[] = [];
+      poller.onStateChange((event) => events.push(event));
+      poller.startPolling("DEV1");
+
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Both should have failed — no state events
+      expect(events.filter((e) => e.type === "state:drives").length).toBe(0);
+      expect(events.filter((e) => e.type === "state:info").length).toBe(0);
+
+      // Phase 2: Stop and restart with only drives succeeding
+      poller.stopPolling("DEV1");
+
+      globalThis.fetch = mock((url: string | URL | Request) => {
+        const urlStr = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+        if (urlStr.includes("/v1/drives")) {
+          return Promise.resolve(new Response(JSON.stringify(drivesData), {
+            headers: { "content-type": "application/json" },
+          }));
+        }
+        if (urlStr.includes("/v1/info")) {
+          // Info still fails
+          return Promise.reject(new Error("ECONNREFUSED"));
+        }
+        return Promise.resolve(new Response("Not found", { status: 404 }));
+      }) as typeof fetch;
+
+      poller.startPolling("DEV1");
+
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Drives succeeded — should emit event (backoff reset for drives)
+      expect(events.filter((e) => e.type === "state:drives").length).toBe(1);
+      // Info still failing — no info event
+      expect(events.filter((e) => e.type === "state:info").length).toBe(0);
+
+      // Phase 3: Now info succeeds too
+      poller.stopPolling("DEV1");
+
+      globalThis.fetch = mock((url: string | URL | Request) => {
+        const urlStr = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+        if (urlStr.includes("/v1/drives")) {
+          return Promise.resolve(new Response(JSON.stringify(drivesData), {
+            headers: { "content-type": "application/json" },
+          }));
+        }
+        if (urlStr.includes("/v1/info")) {
+          return Promise.resolve(new Response(JSON.stringify(infoData), {
+            headers: { "content-type": "application/json" },
+          }));
+        }
+        return Promise.resolve(new Response("Not found", { status: 404 }));
+      }) as typeof fetch;
+
+      poller.startPolling("DEV1");
+
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Info now succeeds — should emit info event
+      expect(events.filter((e) => e.type === "state:info").length).toBe(1);
+    });
+  });
 });
