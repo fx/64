@@ -54,7 +54,7 @@ function MemoryBrowserPage() {
 
   const presetRanges = [
     { label: "ZERO PAGE", addr: 0x0000, len: 256 },
-    { label: "SCREEN RAM", addr: 0x0000, len: 0xD900 },
+    { label: "SCREEN + COLOR RAM", addr: 0x0400, len: 0xD7E8 },
     { label: "BASIC ROM", addr: 0xA000, len: 0x2000 },
     { label: "KERNAL ROM", addr: 0xE000, len: 0x2000 },
     { label: "FULL 64K", addr: 0x0000, len: 0x10000 },

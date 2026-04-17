@@ -104,7 +104,7 @@ export function DisassemblyPanel({
           visibleInstructions.map((instr, idx) => {
             const colorClass = CATEGORY_COLORS[instr.category] ?? "text-c64-14-light-blue";
             return (
-              <div key={idx} className="flex whitespace-pre" style={{ height: ROW_HEIGHT }}>
+              <div key={instr.address} className="flex whitespace-pre" style={{ height: ROW_HEIGHT }}>
                 <span className="text-c64-15-light-grey w-[5ch] inline-block">
                   {formatAddress(instr.address)}
                 </span>

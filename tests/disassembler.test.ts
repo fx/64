@@ -124,7 +124,7 @@ describe("disassembler", () => {
     });
   });
 
-  // ─��� Official Opcodes ────────────────────────────────
+  // -- Official Opcodes ----------------------------------------
 
   describe("official opcodes", () => {
     it("BRK", () => {
@@ -429,7 +429,7 @@ describe("disassembler", () => {
     });
   });
 
-  // ── Utility Functions ─────��───────────────────────────
+  // -- Utility Functions ----------------------------------------
 
   describe("utility functions", () => {
     it("formatAddress pads to 4 hex digits", () => {
@@ -457,15 +457,9 @@ describe("disassembler", () => {
       expect(info!.mode).toBe(AddrMode.IMM);
     });
 
-    it("getOpcodeInfo returns null for truly undefined opcode", () => {
-      // 0x9E is not defined in our table (SHA abs,Y is very unstable)
-      // Let's check one that we know is null
-      // We need to find one that's actually null
-      // All JAM opcodes are defined, undocumented NOPs too
-      // 0x9B, 0x9C, 0x9E, 0x9F, 0xAB, 0xBB may be null
-      // Let's just verify the function works with a known defined one
-      const info = getOpcodeInfo(0xA9);
-      expect(info).not.toBeNull();
+    it("getOpcodeInfo returns null for undefined opcode", () => {
+      const info = getOpcodeInfo(0x9E);
+      expect(info).toBeNull();
     });
   });
 
