@@ -66,6 +66,12 @@ function DeviceListPage() {
         >
           DISK COLLECTIONS
         </Link>
+        <Link
+          to="/profiles"
+          className="c64-button inline-block no-underline"
+        >
+          CONFIG PROFILES
+        </Link>
       </div>
 
       <div className="mt-[1em]">
