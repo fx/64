@@ -46,23 +46,21 @@ export function createSnapshotRoutes(deviceStore: DeviceStore, snapshotStore: Sn
       return c.json({ errors: ["name is required"] }, 400);
     }
 
+    let paused = false;
     try {
       await pauseCpu(device);
+      paused = true;
 
-      let data: Uint8Array;
-      try {
-        data = await readFullMemory(device, 0x0000, FULL_MEMORY_SIZE);
-      } catch (err) {
-        // Best-effort resume if read fails
-        try { await resumeCpu(device); } catch { /* ignore */ }
-        throw err;
-      }
-
+      const data = await readFullMemory(device, 0x0000, FULL_MEMORY_SIZE);
       await resumeCpu(device);
+      paused = false;
 
       const snapshot = snapshotStore.create(device.id, body.name.trim(), data);
       return c.json(snapshot, 201);
     } catch (err) {
+      if (paused) {
+        try { await resumeCpu(device); } catch { /* best-effort resume */ }
+      }
       if (err instanceof AuthError) {
         return proxyError(c, err.message, 403);
       }
@@ -94,11 +92,12 @@ export function createSnapshotRoutes(deviceStore: DeviceStore, snapshotStore: Sn
       return c.json({ errors: ["Snapshot data missing"] }, 404);
     }
 
+    const safeName = snap.name.replace(/[^A-Za-z0-9 _.-]/g, "_").slice(0, 64);
     return new Response(data, {
       status: 200,
       headers: {
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${snap.name}.bin"`,
+        "Content-Disposition": `attachment; filename="${safeName}.bin"`,
       },
     });
   });

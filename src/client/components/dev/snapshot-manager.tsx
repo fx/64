@@ -33,6 +33,7 @@ export function SnapshotManager({ deviceId, onCompare, onClearDiff }: SnapshotMa
   const [compareB, setCompareB] = useState<string>("");
 
   const handleCapture = useCallback(() => {
+    if (createSnapshot.isPending) return;
     const name = nameInput.trim();
     if (!name) {
       addToast("ENTER A NAME FOR THE SNAPSHOT", "error");
@@ -52,13 +53,15 @@ export function SnapshotManager({ deviceId, onCompare, onClearDiff }: SnapshotMa
       deleteSnapshot.mutate(snap.id, {
         onSuccess: () => {
           addToast(`DELETED "${snap.name}"`, "success");
+          const removedFromCompare = compareA === snap.id || compareB === snap.id;
           if (compareA === snap.id) setCompareA("");
           if (compareB === snap.id) setCompareB("");
+          if (removedFromCompare) onClearDiff?.();
         },
         onError: (err) => addToast(`DELETE FAILED: ${err.message}`, "error"),
       });
     },
-    [deleteSnapshot, addToast, compareA, compareB],
+    [deleteSnapshot, addToast, compareA, compareB, onClearDiff],
   );
 
   const handleCompare = useCallback(() => {

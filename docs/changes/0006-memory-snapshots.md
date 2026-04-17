@@ -5,7 +5,7 @@
 Add the ability to capture full 64KB memory snapshots, persist them to disk, and compare snapshots with a visual diff overlay in the hex viewer.
 
 **Spec:** [Developer Tools](../specs/developer-tools/)
-**Status:** draft
+**Status:** complete
 **Depends On:** 0004, 0005
 
 ## Motivation
@@ -57,22 +57,22 @@ The system MUST compare two snapshots and highlight differences.
 
 ## Tasks
 
-- [ ] Create snapshot API endpoints
-  - [ ] POST /api/devices/:deviceId/snapshots — capture (name in body)
-  - [ ] GET /api/devices/:deviceId/snapshots — list
-  - [ ] GET /api/devices/:deviceId/snapshots/:id/data — download binary
-  - [ ] DELETE /api/devices/:deviceId/snapshots/:id
-  - [ ] GET /api/devices/:deviceId/snapshots/:id/diff?against=:otherId
-- [ ] Create snapshot persistence (data/snapshots/ + data/snapshots.json index)
-- [ ] Add diff overlay to hex viewer component
-  - [ ] Red highlight for bytes that differ
-  - [ ] Summary bar: "N bytes changed (X%)"
-- [ ] Create snapshot manager UI panel
-  - [ ] List snapshots (name, date, size)
-  - [ ] Take snapshot button
-  - [ ] Compare selector
-  - [ ] Delete button
-- [ ] Write tests for snapshot API and diff logic
+- [x] Create snapshot API endpoints (PR #26)
+  - [x] POST /api/devices/:deviceId/snapshots — capture (name in body)
+  - [x] GET /api/devices/:deviceId/snapshots — list
+  - [x] GET /api/devices/:deviceId/snapshots/:id/data — download binary
+  - [x] DELETE /api/devices/:deviceId/snapshots/:id
+  - [x] GET /api/devices/:deviceId/snapshots/:id/diff?against=:otherId
+- [x] Create snapshot persistence (data/snapshots/ + data/snapshots.json index) (PR #26)
+- [x] Add diff overlay to hex viewer component (PR #26)
+  - [x] Red highlight for bytes that differ
+  - [x] Summary bar: "N bytes changed (X%)"
+- [x] Create snapshot manager UI panel (PR #26)
+  - [x] List snapshots (name, date, size)
+  - [x] Take snapshot button
+  - [x] Compare selector
+  - [x] Delete button
+- [x] Write tests for snapshot API and diff logic (PR #26)
 
 ## Open Questions
 
