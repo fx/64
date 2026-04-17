@@ -172,6 +172,18 @@ export interface PlaybackEvent {
   data: PlaybackState;
 }
 
+// ── Config Profiles ─────────────────────────────────
+
+export interface ConfigProfile {
+  id: string;
+  name: string;
+  description?: string;
+  deviceProduct?: string;
+  config: Record<string, Record<string, string | number>>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Macro Events ────────────────────────────────────
 
 export type MacroEventType = "macro:step" | "macro:complete" | "macro:failed";

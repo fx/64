@@ -8,9 +8,11 @@ import { createFileRoutes } from "./routes/files.ts";
 import { createCollectionRoutes } from "./routes/collections.ts";
 import { createMacroRoutes } from "./routes/macros.ts";
 import { createPlaylistRoutes } from "./routes/playlists.ts";
+import { createProfileRoutes } from "./routes/profiles.ts";
 import library from "./routes/library.ts";
 import { DeviceStore } from "./lib/device-store.ts";
 import { CollectionStore } from "./lib/collection-store.ts";
+import { ProfileStore } from "./lib/profile-store.ts";
 import { MacroStore } from "./lib/macro-store.ts";
 import { MacroEngine } from "./lib/macro-engine.ts";
 import { PlaylistStore } from "./lib/playlist-store.ts";
@@ -24,6 +26,7 @@ const collectionStore = new CollectionStore();
 const macroStore = new MacroStore();
 const macroEngine = new MacroEngine();
 const playlistStore = new PlaylistStore();
+const profileStore = new ProfileStore();
 const playbackStateManager = new PlaybackStateManager();
 const poller = new DevicePoller(store);
 
@@ -34,6 +37,7 @@ const fileRoutes = createFileRoutes(store);
 const collectionRoutes = createCollectionRoutes(collectionStore, store);
 const macroRoutes = createMacroRoutes(macroStore, macroEngine, store);
 const playlistRoutes = createPlaylistRoutes(playlistStore, playbackStateManager, store);
+const profileRoutes = createProfileRoutes(profileStore);
 const proxyRoutes = createProxyRoutes(store);
 
 const app = new Hono();
@@ -50,6 +54,7 @@ const apiRoutes = app
   .route("/", collectionRoutes)
   .route("/", macroRoutes)
   .route("/", playlistRoutes)
+  .route("/", profileRoutes)
   .route("/", proxyRoutes)
   .route("/", library);
 
