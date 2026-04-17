@@ -5,7 +5,7 @@
 Add a ProfileStore and CRUD API endpoints for managing named configuration profiles. This lays the data foundation for capture/apply/diff functionality.
 
 **Spec:** [Config Profiles](../specs/config-profiles/)
-**Status:** draft
+**Status:** complete
 **Depends On:** —
 
 ## Motivation
@@ -72,17 +72,17 @@ interface ConfigProfile {
 
 ## Tasks
 
-- [ ] Add ConfigProfile type to src/shared/types.ts
-- [ ] Create ProfileStore in src/server/lib/profile-store.ts
-- [ ] Create profile routes in src/server/routes/profiles.ts
-  - [ ] GET /api/profiles — list all
-  - [ ] POST /api/profiles — create
-  - [ ] GET /api/profiles/:id — get single
-  - [ ] PUT /api/profiles/:id — update
-  - [ ] DELETE /api/profiles/:id — delete
-- [ ] Register route in src/server/index.ts
-- [ ] Write tests in tests/profile-store.test.ts
-- [ ] Write tests in tests/profile-routes.test.ts
+- [x] Add ConfigProfile type to src/shared/types.ts (PR #21)
+- [x] Create ProfileStore in src/server/lib/profile-store.ts (PR #21)
+- [x] Create profile routes in src/server/routes/profiles.ts (PR #21)
+  - [x] GET /api/profiles — list all
+  - [x] POST /api/profiles — create
+  - [x] GET /api/profiles/:id — get single
+  - [x] PUT /api/profiles/:id — update
+  - [x] DELETE /api/profiles/:id — delete
+- [x] Register route in src/server/index.ts (PR #21)
+- [x] Write tests in tests/profile-store.test.ts (PR #21)
+- [x] Write tests in tests/profile-routes.test.ts (PR #21)
 
 ## Open Questions
 
