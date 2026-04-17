@@ -22,7 +22,7 @@ export class DevicePoller {
   private readonly cache = new Map<string, DeviceStateCache>();
   private readonly driveTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly infoTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  private readonly backoff = new Map<string, number>();
+  private readonly backoff = new Map<string, { drives: number; info: number }>();
   private readonly listeners = new Set<StateListener>();
   private unsubscribeDeviceEvents: (() => void) | null = null;
 
@@ -77,7 +77,7 @@ export class DevicePoller {
       }
     }
 
-    this.backoff.set(deviceId, 1);
+    this.backoff.set(deviceId, { drives: 1, info: 1 });
     this.scheduleDrivePoll(deviceId, 0);
     this.scheduleInfoPoll(deviceId, 0);
   }
@@ -128,7 +128,7 @@ export class DevicePoller {
       await this.pollState(deviceId, "drives", "state:drives", (d) =>
         fetchDrives(d.ip, d.port, d.password));
       if (this.driveTimers.has(deviceId)) {
-        const multiplier = this.backoff.get(deviceId) ?? 1;
+        const multiplier = this.backoff.get(deviceId)?.drives ?? 1;
         this.scheduleDrivePoll(deviceId, DRIVES_INTERVAL_MS * multiplier);
       }
     }, delayMs);
@@ -140,7 +140,7 @@ export class DevicePoller {
       await this.pollState(deviceId, "info", "state:info", (d) =>
         fetchDeviceInfo(d.ip, d.port, d.password));
       if (this.infoTimers.has(deviceId)) {
-        const multiplier = this.backoff.get(deviceId) ?? 1;
+        const multiplier = this.backoff.get(deviceId)?.info ?? 1;
         this.scheduleInfoPoll(deviceId, INFO_INTERVAL_MS * multiplier);
       }
     }, delayMs);
@@ -163,7 +163,7 @@ export class DevicePoller {
 
     const result = await fetcher(device);
     if (result.ok) {
-      this.backoff.set(deviceId, 1);
+      this.resetBackoff(deviceId, field);
       const cached = this.cache.get(deviceId);
       const newJson = JSON.stringify(result.data);
       const oldJson = cached?.[field] !== undefined ? JSON.stringify(cached[field]) : undefined;
@@ -177,15 +177,22 @@ export class DevicePoller {
         this.emit({ type: eventType, deviceId, data: result.data });
       }
     } else {
-      this.increaseBackoff(deviceId);
+      this.increaseBackoff(deviceId, field);
     }
   }
 
-  private increaseBackoff(deviceId: string): void {
-    const current = this.backoff.get(deviceId) ?? 1;
-    // Cap so neither drives nor info interval exceeds MAX_BACKOFF_MS
-    const maxMultiplier = MAX_BACKOFF_MS / Math.max(DRIVES_INTERVAL_MS, INFO_INTERVAL_MS);
-    const next = Math.min(current * 2, maxMultiplier);
-    this.backoff.set(deviceId, next);
+  private resetBackoff(deviceId: string, field: CacheField): void {
+    const state = this.backoff.get(deviceId);
+    if (state) {
+      state[field] = 1;
+    }
+  }
+
+  private increaseBackoff(deviceId: string, field: CacheField): void {
+    const state = this.backoff.get(deviceId);
+    if (!state) return;
+    const baseInterval = field === "drives" ? DRIVES_INTERVAL_MS : INFO_INTERVAL_MS;
+    const maxMultiplier = MAX_BACKOFF_MS / baseInterval;
+    state[field] = Math.min(state[field] * 2, maxMultiplier);
   }
 }

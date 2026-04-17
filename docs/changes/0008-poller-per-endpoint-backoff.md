@@ -5,7 +5,7 @@
 Fix DevicePoller to track exponential backoff independently per polling endpoint (drives vs info) instead of sharing a single backoff multiplier per device. Currently, a failure in one endpoint (e.g., drives) increases the backoff for all endpoints, causing unnecessary slowdown.
 
 **Spec:** [Realtime Events](../specs/realtime-events/)
-**Status:** draft
+**Status:** complete
 **Depends On:** —
 
 ## Motivation
@@ -68,15 +68,15 @@ New structure (per-endpoint multiplier):
 
 ## Tasks
 
-- [ ] Refactor DevicePoller backoff from per-device to per-device-per-endpoint
-  - [ ] Update internal state type to track separate backoff multipliers
-  - [ ] Update `scheduleDrives()` to use drives-specific backoff
-  - [ ] Update `scheduleInfo()` to use info-specific backoff
-  - [ ] Reset only the relevant endpoint's backoff on success
-- [ ] Update tests in `tests/device-poller.test.ts`
-  - [ ] Test: drives failure doesn't affect info interval
-  - [ ] Test: info failure doesn't affect drives interval
-  - [ ] Test: backoff reset is per-endpoint
+- [x] Refactor DevicePoller backoff from per-device to per-device-per-endpoint (PR #20)
+  - [x] Update internal state type to track separate backoff multipliers
+  - [x] Update `scheduleDrives()` to use drives-specific backoff
+  - [x] Update `scheduleInfo()` to use info-specific backoff
+  - [x] Reset only the relevant endpoint's backoff on success
+- [x] Update tests in `tests/device-poller.test.ts` (PR #20)
+  - [x] Test: drives failure doesn't affect info interval
+  - [x] Test: info failure doesn't affect drives interval
+  - [x] Test: backoff reset is per-endpoint
 
 ## Open Questions
 
