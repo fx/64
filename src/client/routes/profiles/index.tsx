@@ -420,30 +420,24 @@ function DiffPreviewPanel({
 
 /* ── Diff Viewer Component ───────────────────────────── */
 
+function groupByCategory<T extends { category: string }>(
+  entries: T[],
+): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const entry of entries) {
+    const list = map.get(entry.category) ?? [];
+    list.push(entry);
+    map.set(entry.category, list);
+  }
+  return map;
+}
+
 function DiffViewer({ diff }: { diff: ConfigDiff }) {
   const { changes, leftOnly, rightOnly, identicalCount } = diff;
 
-  // Group changes by category
-  const changesByCategory = new Map<string, typeof changes>();
-  for (const entry of changes) {
-    const list = changesByCategory.get(entry.category) ?? [];
-    list.push(entry);
-    changesByCategory.set(entry.category, list);
-  }
-
-  const leftByCategory = new Map<string, typeof leftOnly>();
-  for (const entry of leftOnly) {
-    const list = leftByCategory.get(entry.category) ?? [];
-    list.push(entry);
-    leftByCategory.set(entry.category, list);
-  }
-
-  const rightByCategory = new Map<string, typeof rightOnly>();
-  for (const entry of rightOnly) {
-    const list = rightByCategory.get(entry.category) ?? [];
-    list.push(entry);
-    rightByCategory.set(entry.category, list);
-  }
+  const changesByCategory = groupByCategory(changes);
+  const leftByCategory = groupByCategory(leftOnly);
+  const rightByCategory = groupByCategory(rightOnly);
 
   const allCategories = new Set([
     ...changesByCategory.keys(),
