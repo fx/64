@@ -161,7 +161,10 @@ function ProfilesPage() {
               <div>
                 {/* Table header */}
                 <div className="flex bg-c64-14-light-blue text-c64-6-blue">
-                  <span className="px-[1ch] flex-1">NAME</span>
+                  <span className="px-[1ch]" style={{ flex: "0 0 14ch" }}>
+                    NAME
+                  </span>
+                  <span className="px-[1ch] flex-1">DESCRIPTION</span>
                   <span className="px-[1ch]" style={{ flex: "0 0 12ch" }}>
                     DEVICE
                   </span>
@@ -175,8 +178,14 @@ function ProfilesPage() {
                     key={p.id}
                     className="flex items-center py-[0.25em]"
                   >
-                    <span className="px-[1ch] flex-1 truncate">
+                    <span
+                      className="px-[1ch] truncate"
+                      style={{ flex: "0 0 14ch" }}
+                    >
                       {p.name.toUpperCase()}
+                    </span>
+                    <span className="px-[1ch] flex-1 truncate">
+                      {(p.description ?? "").toUpperCase() || "-"}
                     </span>
                     <span
                       className="px-[1ch] truncate"

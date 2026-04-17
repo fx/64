@@ -173,8 +173,16 @@ export function useImportProfile() {
   return useMutation({
     mutationFn: async (file: File) => {
       const text = await file.text();
-      const data = JSON.parse(text);
-      const res = await api.profiles.import.$post({ json: data });
+      let data: unknown;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Selected file is not valid JSON");
+      }
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        throw new Error("Selected file does not contain a valid profile");
+      }
+      const res = await api.profiles.import.$post({ json: data as Record<string, unknown> });
       if (!res.ok)
         throw new Error(await getErrorMessage(res, "Failed to import profile"));
       return res.json();
