@@ -5,7 +5,7 @@
 Add server-side API endpoints for reading and writing C64 memory through the device proxy, with support for ranged reads and hex-encoded writes.
 
 **Spec:** [Developer Tools](../specs/developer-tools/)
-**Status:** draft
+**Status:** complete
 **Depends On:** —
 
 ## Motivation
@@ -70,13 +70,13 @@ The system MUST provide an endpoint to write bytes to device memory.
 
 ## Tasks
 
-- [ ] Create memory routes in src/server/routes/memory.ts
-  - [ ] GET /api/devices/:deviceId/memory?address=XXXX&length=N
-  - [ ] PUT /api/devices/:deviceId/memory (body: { address, data })
-  - [ ] Chunked read logic for large ranges
-  - [ ] Auto-pause/resume for reads >4KB
-- [ ] Register route in src/server/index.ts
-- [ ] Write tests in tests/memory-routes.test.ts
+- [x] Create memory routes in src/server/routes/memory.ts (PR #22)
+  - [x] GET /api/devices/:deviceId/memory?address=XXXX&length=N (PR #22)
+  - [x] PUT /api/devices/:deviceId/memory (body: { address, data }) (PR #22)
+  - [x] Chunked read logic for large ranges (PR #22)
+  - [x] Auto-pause/resume for reads >4KB (PR #22)
+- [x] Register route in src/server/index.ts (PR #22)
+- [x] Write tests in tests/memory-routes.test.ts (PR #22)
 
 ## Open Questions
 
