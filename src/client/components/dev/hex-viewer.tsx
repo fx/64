@@ -13,6 +13,8 @@ interface HexViewerProps {
   onScrollOffset?: (offset: number) => void;
   scrollOffset?: number;
   selectedAddress?: number | null;
+  /** Set of byte offsets (relative to data start) where bytes differ */
+  diffOffsets?: Set<number> | null;
 }
 
 function toAscii(byte: number): string {
@@ -31,6 +33,7 @@ export function HexViewer({
   onScrollOffset,
   scrollOffset: externalScrollOffset,
   selectedAddress,
+  diffOffsets,
 }: HexViewerProps) {
   const [internalScrollOffset, setInternalScrollOffset] = useState(0);
   const scrollOffset = externalScrollOffset ?? internalScrollOffset;
@@ -131,12 +134,14 @@ export function HexViewer({
       const isHovered = hoverAddr === addr;
       const isSelected = selectedAddress === addr;
       const isEditing = editingAddr === addr;
+      const isDiff = diffOffsets?.has(byteOffset) ?? false;
 
       const cellClass = [
         "inline-block w-[2ch] text-center cursor-pointer",
         isEditing ? "bg-c64-14-light-blue text-c64-6-blue" :
         isSelected ? "bg-c64-3-cyan text-c64-6-blue" :
-        isHovered ? "bg-c64-11-dark-grey" : "",
+        isHovered ? "bg-c64-11-dark-grey" :
+        isDiff ? "bg-c64-2-red text-c64-1-white" : "",
       ].join(" ");
 
       if (isEditing) {
@@ -177,7 +182,8 @@ export function HexViewer({
           key={col}
           className={[
             "inline-block w-[1ch]",
-            isHovered || isSelected ? "bg-c64-11-dark-grey" : "",
+            isHovered || isSelected ? "bg-c64-11-dark-grey" :
+            isDiff ? "bg-c64-2-red text-c64-1-white" : "",
           ].join(" ")}
           onMouseEnter={() => handleMouseEnter(addr)}
           onMouseLeave={handleMouseLeave}
@@ -259,6 +265,13 @@ export function HexViewer({
       {data && totalDataRows > VISIBLE_ROWS && (
         <div className="text-c64-11-dark-grey mt-[0.25em]">
           ROW {scrollOffset + 1}/{totalDataRows}
+        </div>
+      )}
+
+      {/* Diff summary bar */}
+      {diffOffsets && diffOffsets.size > 0 && data && (
+        <div className="mt-[0.25em] text-c64-2-red">
+          {diffOffsets.size} BYTES CHANGED ({((diffOffsets.size / data.length) * 100).toFixed(1)}%)
         </div>
       )}
     </div>

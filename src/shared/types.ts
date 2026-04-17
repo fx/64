@@ -204,6 +204,24 @@ export interface ConfigDiff {
   identicalCount: number;
 }
 
+// ── Memory Snapshots ────────────────────────────────
+
+export interface Snapshot {
+  id: string;
+  deviceId: string;
+  name: string;
+  size: number; // bytes (always 65536)
+  createdAt: string;
+}
+
+export interface SnapshotDiff {
+  snapshotId: string;
+  againstId: string;
+  changedBytes: number;
+  totalBytes: number;
+  offsets: number[];
+}
+
 // ── Macro Events ────────────────────────────────────
 
 export type MacroEventType = "macro:step" | "macro:complete" | "macro:failed";
