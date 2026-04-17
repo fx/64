@@ -17,3 +17,4 @@ _(All remaining work is tracked in change documents — see [index](index.md))_
 - [x] Disk flip collections — CRUD, flip widget (PR #15)
 - [x] Macros — engine, SSE progress, manager UI (PRs #17-18)
 - [x] Jukebox — playlists, playback, now-playing bar (PRs #14, #16)
+- [x] Docs restructure — 11 feature specs, 8 change documents, CI paths-ignore (PR #19)

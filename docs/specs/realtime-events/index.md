@@ -101,7 +101,7 @@ The server MUST expose two SSE endpoints.
 > GIVEN a client opens `GET /api/events/devices`
 > WHEN the connection is established
 > THEN the server MUST send the current device list as `device:online` or `device:offline` events (initial snapshot)
-> AND the server MUST forward all subsequent device, state, macro, and playback events
+> AND the server MUST forward all subsequent device, state, and macro events
 > AND events MUST include monotonically increasing `id` fields
 
 **Scenario: Per-device stream**
@@ -308,6 +308,8 @@ interface MacroEvent {
   };
 }
 ```
+
+> **Note:** The `data` object is the internal event-bus payload. On the SSE wire, the global stream flattens this as `{ executionId, macroId, deviceId, currentStep, totalSteps, step?, error? }` (spreading `data` into the top level). The per-device stream preserves the nested structure.
 
 #### PlaybackEvent
 

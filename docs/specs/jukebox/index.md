@@ -430,7 +430,7 @@ The bar is hidden when `status === "stopped"` or no `currentTrack` exists.
 
 7. **Stop uses machine reset.** Stopping playback issues a full `machine:reset` command, which halts ALL device activity (not just audio). This is a hardware limitation — the Ultimate API does not provide a runner-stop-only endpoint.
 
-8. **Poll-based state synchronization.** The client polls for playback state every 10 seconds. State changes initiated by other clients or external factors are not reflected in real-time but within the polling window. Playback events are emitted server-side for SSE consumers but the now-playing bar currently relies on polling.
+8. **Hybrid state synchronization.** The device dashboard uses `useDeviceSSE(deviceId)` which updates the TanStack Query cache on `playback:play`, `playback:stop`, `playback:next`, and `playback:prev` SSE events for near-instant updates. Polling every 10 seconds serves as a resilience fallback for missed events or reconnection gaps.
 
 ## Open Questions
 
