@@ -5,7 +5,7 @@
 Add a profile manager page with UI for listing, capturing, applying, diffing, and importing/exporting configuration profiles.
 
 **Spec:** [Config Profiles](../specs/config-profiles/)
-**Status:** draft
+**Status:** complete
 **Depends On:** 0001, 0002
 
 ## Motivation
@@ -78,27 +78,28 @@ The system MUST show a confirmation before applying a profile to a device.
 
 ## Tasks
 
-- [ ] Create TanStack Query hooks in src/client/hooks/use-profiles.ts
-  - [ ] useProfiles(), useProfile(id), CRUD mutations
-  - [ ] useCaptureProfile(), useApplyProfile()
-  - [ ] useProfileDiff(id, against/deviceId)
-  - [ ] useExportProfile(), useImportProfile()
-- [ ] Create profile manager route at src/client/routes/profiles/index.tsx
-  - [ ] Profile list table
-  - [ ] Capture form (device selector + name input)
-  - [ ] Apply flow (device selector + diff preview + confirm)
-  - [ ] Delete with confirmation
-- [ ] Create diff viewer component
-  - [ ] Category-grouped item comparison
-  - [ ] Changed/added/removed highlighting using C64 colors
-  - [ ] Identical count summary
-- [ ] Add /profiles link to home page navigation
-- [ ] Import/export buttons (file input + download)
-- [ ] Update TanStack Router route tree
+- [x] Create TanStack Query hooks in src/client/hooks/use-profiles.ts (PR #25)
+  - [x] useProfiles(), useProfile(id), CRUD mutations
+  - [x] useCaptureProfile(), useApplyProfile()
+  - [x] useProfileDiff(id, against/deviceId)
+  - [x] useExportProfile(), useImportProfile()
+- [x] Create profile manager route at src/client/routes/profiles/index.tsx (PR #25)
+  - [x] Profile list table
+  - [x] Capture form (device selector + name input)
+  - [x] Apply flow (device selector + diff preview + confirm)
+  - [x] Delete with confirmation
+- [x] Create diff viewer component (PR #25)
+  - [x] Category-grouped item comparison
+  - [x] Changed/added/removed highlighting using C64 colors
+  - [x] Identical count summary
+- [x] Add /profiles link to home page navigation (PR #25)
+- [x] Import/export buttons (file input + download) (PR #25)
+- [x] Update TanStack Router route tree (PR #25)
 
 ## Open Questions
 
-- [ ] Should the diff viewer group by category with collapsible sections, or show a flat list?
+- [x] Should the diff viewer group by category with collapsible sections, or show a flat list?
+  - **Decision**: Group by category with static sections (not collapsible). Simple and scannable.
 
 ## References
 
